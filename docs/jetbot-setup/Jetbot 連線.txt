@@ -1,0 +1,15 @@
+確認網路通道
+ifconfig en7 (inactive -> active)
+ifconfig bridge100 (inactive -> active)
+
+分頁掃描
+for i in {1..254}; do (ping -c 1 -W 200 192.168.2.$i > /dev/null 2>&1 && echo "192.168.2.$i is up") & done; wait
+
+呼叫特定位址
+nc -z -v -G 3 192.168.2.3 22 
+
+SSH 連線
+ssh jetbot@192.168.2.3
+
+Nano 板關機
+ssh -i ~/.ssh/jetbot_key jetbot@192.168.2.3 'echo jetbot | sudo -S shutdown -h now'

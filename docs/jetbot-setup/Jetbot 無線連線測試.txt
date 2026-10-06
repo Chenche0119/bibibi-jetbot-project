@@ -1,0 +1,29 @@
+1. 在目前的有線 SSH session 裡輸入
+
+'''
+sudo nmtui
+'''
+密碼一樣是 jetbot
+
+2. 進入 nmtui 介面後選第二項「啟用連線」，選擇要連的 Wi-Fi SSID，輸入密碼連線，完成後 <Back> → <Quit> 離開
+
+3. 確認是否連上：
+
+'''
+iwconfig
+'''
+
+4. 查詢 wlan0 拿到的 IP：
+
+'''
+ifconfig
+'''
+wlan0 那一段顯示的 IP 就是無線 IP（手冊範例是 192.168.12.147）
+
+5. MacBook 只要跟車機接在同一個 Wi-Fi 底下，就能直接用這個 wlan0 IP 做無線 SSH：
+
+'''
+ssh jetbot@<wlan0的IP>
+'''
+
+密碼同樣是 jetbot，不用再插網路線。

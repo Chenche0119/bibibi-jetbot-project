@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+# 大型檔案與重複壓縮檔不入版控（dataset.zip 與 dataset/ 重複）
+large-files/
