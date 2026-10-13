@@ -27,15 +27,27 @@ import sys
 import cv2
 import numpy as np
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# marker.py 的位置依 repo 結構而不同,兩個都找:
+#   本專案 repo    object_following/marker.py        (= 上一層)
+#   組員的 repo    src/marker.py                     (= 上一層的 src/)
+_PARENT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(_PARENT, 'src'))
+sys.path.insert(0, _PARENT)
 import marker  # noqa: E402
 
 
 IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.bmp')
 
-# 224x168 的圖直接顯示根本點不到 4x6 像素的標記,放大再讓人框。
+# 小圖放大再讓人框,但放大後不能超出筆電螢幕,否則 selectROI 視窗會被切掉、
+# 框不到下半部。舊版寫死 6 倍是給 224x168 用的;640x480 放 6 倍是 3840x2880。
+# 改成「放到剛好塞進這個大小」,640x480 約 1.8 倍。
 # 用 INTER_NEAREST:放大時不要內插,否則會混出原本不存在的顏色。
-DISPLAY_SCALE = 6
+MAX_DISPLAY_W, MAX_DISPLAY_H = 1400, 850
+
+
+def display_scale(image):
+    h, w = image.shape[:2]
+    return max(1.0, min(MAX_DISPLAY_W / float(w), MAX_DISPLAY_H / float(h)))
 
 
 def list_images(folder):
@@ -57,11 +69,12 @@ def distance_from_name(path):
 
 def pick_roi(image, title):
     """放大顯示讓人框一塊區域,回傳原始解析度下的 HSV 像素陣列。"""
-    big = cv2.resize(image, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE,
+    scale = display_scale(image)
+    big = cv2.resize(image, None, fx=scale, fy=scale,
                      interpolation=cv2.INTER_NEAREST)
     box = cv2.selectROI(title, big, showCrosshair=True, fromCenter=False)
     cv2.destroyWindow(title)
-    x, y, w, h = [int(round(v / float(DISPLAY_SCALE))) for v in box]
+    x, y, w, h = [int(round(v / scale)) for v in box]
     if w <= 0 or h <= 0:
         return None
     roi = image[y:y + h, x:x + w]
@@ -153,65 +166,81 @@ def run_pick(paths):
 
 # --- 模式二:驗證距離 ------------------------------------------------------
 
-def run_check(paths, save_masks):
+def _check_config():
+    """校正照沒有人框,bbox 只能給整張畫面。
+
+    這時「人框下半部」就變成「整張畫面下半部」,意義完全不同:JetBot 鏡頭貼近
+    地面,人站在畫面上半部,小腿標記約在畫面高度 30~50% —— 只搜下半部會全部
+    判成 FAIL。所以 --check 一律搜整張畫面,只驗證顏色門檻與面積;
+    「只搜人框下半部」的效果要上車用真的人框才量得到。
+    """
     cfg = marker.MarkerConfig()
+    cfg.search_bottom_fraction = 1.0
+    return cfg
+
+
+def run_check(paths, save_masks):
+    cfg = _check_config()
     out_dir = os.path.join(os.path.dirname(paths[0]), 'check_out')
     if save_masks and not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
     print('')
-    print('套用 marker.py 目前的門檻。bbox 用整張畫面,所以搜尋範圍是下方 %d%%。'
-          % int(cfg.search_bottom_fraction * 100))
+    print('套用 marker.py 目前的門檻,搜尋整張畫面(校正照沒有人框)。')
+    print('判定規則:%s' % ('桃紅與綠色都要有(require_both=True)' if cfg.require_both
+                           else '桃紅或綠色任一成立(require_both=False)'))
+    print('桃紅/綠色欄位是「單獨成立」的色塊面積,0 代表該色單獨不成立。')
     print('')
-    print('%-24s %7s %7s %9s %9s %7s' % (
-        '檔名', '桃紅px', '第二色px', '只認桃紅', '雙色驗證', '過曝%'))
-    print('-' * 68)
+    print('%-24s %7s %7s %7s %7s' % ('檔名', '桃紅px', '綠色px', '判定', '過曝%'))
+    print('-' * 60)
 
     rows = []
     for path in paths:
         image = cv2.imread(path)
         if image is None:
             continue
-        # 兩種判準都跑一次,才看得出雙色是在哪個距離開始失效
-        loose = marker.detect(image, [0.0, 0.0, 1.0, 1.0], cfg, diagnostics=True)
-        strict_cfg = marker.MarkerConfig()
-        strict_cfg.dual_color_min_bbox_h = 0.0      # 強制要求雙色
-        strict = marker.detect(image, [0.0, 0.0, 1.0, 1.0], strict_cfg)
-
-        loose_cfg = marker.MarkerConfig()
-        loose_cfg.dual_color_min_bbox_h = 2.0       # 強制只認桃紅
-        pink_only = marker.detect(image, [0.0, 0.0, 1.0, 1.0], loose_cfg)
-
+        r = marker.detect(image, [0.0, 0.0, 1.0, 1.0], cfg, diagnostics=True)
         name = os.path.basename(path)
-        print('%-24s %7d %7d %9s %9s %6.1f%%' % (
-            name[:24], strict.pink_area, strict.second_area,
-            'OK' if pink_only.found else 'FAIL',
-            'OK' if strict.found else 'FAIL',
-            loose.clipped_ratio * 100))
-        rows.append((distance_from_name(path), pink_only.found, strict.found))
+        # bg_ 開頭的是沒有標記的背景照,找到東西才是錯
+        is_bg = name.lower().startswith('bg')
+        ok = (not r.found) if is_bg else r.found
+        verdict = ('OK' if ok else 'FAIL') + ('(bg)' if is_bg else '')
+        print('%-24s %7d %7d %7s %6.1f%%' % (
+            name[:24], r.pink_area, r.second_area, verdict, r.clipped_ratio * 100))
+        rows.append((distance_from_name(path), is_bg, ok, r.pink_area > 0, r.second_area > 0))
 
         if save_masks:
             vis = image.copy()
-            marker.draw_debug(vis, strict if strict.found else pink_only)
-            big = cv2.resize(vis, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE,
+            marker.draw_debug(vis, r)
+            scale = display_scale(vis)
+            big = cv2.resize(vis, None, fx=scale, fy=scale,
                              interpolation=cv2.INTER_NEAREST)
             cv2.imwrite(os.path.join(out_dir, name), big)
 
     print('')
-    known = [r for r in rows if r[0] is not None]
-    if known:
-        dual_ok = [d for d, _p, s in known if s]
-        pink_ok = [d for d, p, _s in known if p]
-        print('雙色驗證成功的最遠距離:%s' %
-              ('%.2f m' % max(dual_ok) if dual_ok else '全部失敗'))
-        print('只認桃紅成功的最遠距離:%s' %
-              ('%.2f m' % max(pink_ok) if pink_ok else '全部失敗'))
-        if dual_ok:
-            print('')
-            print('>> 把 marker.py 的 dual_color_min_bbox_h 設成「雙色最遠距離」')
-            print('   對應的框高。框高 0.30 約 1.5m、0.45 約 1.0m、0.55 約 0.8m。')
+    marked = [r for r in rows if not r[1]]
+    bgs = [r for r in rows if r[1]]
+    if marked:
+        print('有標記的照片:%d 張,判定成功 %d 張' % (
+            len(marked), sum(1 for r in marked if r[2])))
+        print('  只靠桃紅單獨就成立:%d 張   只靠綠色單獨就成立:%d 張' % (
+            sum(1 for r in marked if r[3]), sum(1 for r in marked if r[4])))
+        print('  兩色都成立:%d 張   只有一色成立(另一色靠不住):%d 張' % (
+            sum(1 for r in marked if r[3] and r[4]),
+            sum(1 for r in marked if r[2] and not (r[3] and r[4]))))
+    if bgs:
+        print('背景照(不該找到):%d 張,誤判 %d 張' % (
+            len(bgs), sum(1 for r in bgs if not r[2])))
     else:
-        print('(檔名裡沒有距離資訊,跳過距離摘要。命名成 1.5m_01.png 就會有。)')
+        print('沒有背景照(檔名 bg_ 開頭)。誤判率要另外拍無標記的照片才量得到。')
+
+    known = [r for r in marked if r[0] is not None]
+    if known:
+        ok_d = [r[0] for r in known if r[2]]
+        print('成功的最遠距離:%s' % ('%.2f m' % max(ok_d) if ok_d else '全部失敗'))
+        bad = sorted(set(r[0] for r in known if not r[2]))
+        if bad:
+            print('有失敗的距離:%s' % ', '.join('%.1fm' % d for d in bad))
 
     if save_masks:
         print('')
