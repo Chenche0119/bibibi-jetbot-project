@@ -14,6 +14,9 @@
 | `notebooks/` | 資料蒐集與跟隨狀態機 Jupyter notebook |
 | `arduino/` | Arduino 程式：`arduino_feedback/`（正式韌體：紅綠燈、蜂鳴器、VL53L0X 雷射，115200）、測試程式 |
 | `marker_calibration/` | 標記顏色 HSV 校正流程 |
+| `docs/yolo/` | YOLO 模型建置流程草案、討論問答紀錄 |
+| `preprocessing/` | 資料集 metadata、完整性報告、train/test 切分結果 |
+| `scripts/` | 前處理腳本（`build_metadata.py`、`split_dataset.py`） |
 | `dataset/` | free / blocked 影像資料集 |
 | `data/` | 影像蒐集範例資料夾、task_A_alert_20261013 警示影像 |
 
