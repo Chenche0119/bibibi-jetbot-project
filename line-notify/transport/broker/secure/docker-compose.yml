@@ -1,0 +1,13 @@
+# 本地加密 broker（模擬雲端）。先執行 ./setup.sh 產生憑證與密碼檔
+# 啟動：在本資料夾執行 docker compose up
+# 停止：Ctrl+C，或 docker compose down
+services:
+  mosquitto-secure:
+    image: eclipse-mosquitto:2
+    container_name: jetbot-mosquitto-secure
+    ports:
+      - "8883:8883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./passwd:/mosquitto/config/passwd:ro
+      - ./certs:/mosquitto/config/certs:ro

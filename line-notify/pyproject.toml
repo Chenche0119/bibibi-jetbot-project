@@ -1,0 +1,12 @@
+[project]
+name = "jetbot-line-notify"
+version = "0.1.0"
+description = "Arduino / JetBot 與 LINE Messaging API 的最小串接"
+# 部署目標 JetPack 4.6 (Ubuntu 18.04) 的 Python 是 3.6，
+# 程式碼刻意避開 3.7+ 語法（無 f-string、無 walrus、無 dataclass）
+requires-python = ">=3.6"
+dependencies = [
+    "pyserial>=3.5",
+]
+
+# line_notify.py 只用標準函式庫，沒有相依；pyserial 只有 serial_bridge.py 需要。
