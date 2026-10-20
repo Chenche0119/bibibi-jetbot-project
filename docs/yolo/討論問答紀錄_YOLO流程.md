@@ -83,11 +83,11 @@
 | 「準確率 ≥90%」的定義 | 構想書未指明是 mAP50、precision 還是 accuracy；YOLO 角色改變後，建議以 per-image class presence＋mAP50 定義 |
 | 各階段時程與負責人 | 紀錄單的預定完成日尚未填寫 |
 | 補拍（C4） | 目前傾向不補拍，需在報告中明寫泛化範圍 |
-| 護腕可見度覆核（D5） | 以 `band_px` 找出「目視可見但像素過少」的影像 |
+| 護腕可見度覆核（D5） | 已產出覆核清單 `preprocessing/band_review.csv`（`scripts/review_band_visibility.py`），待人工目視覆核 |
 | YOLO 輸出接通報（D7） | 輸出格式（類別、數量、位置）與 LLM／Line@ 接口（顏尚岳） |
 | 標註指南 | 建議製作含實例截圖的規則文件（未開始） |
-| train／val 切分 | 以 `block_id` 為單位切分（未開始） |
-| 增強版本與實驗訓練 | 依 `YOLO模型建置流程_草案.md` 的 P4–P6 |
+| train／val 切分 | 已完成腳本 `scripts/split_train_val.py`（以 `block_id` 為單位） |
+| 增強版本與實驗訓練 | 實驗矩陣 `make_experiment_matrix.py`、訓練 `train_yolo.py`、彙整 `summarize_runs.py`、評估 `eval_presence.py` 腳本已備；待標註完成後實際訓練 |
 
 ## 更換實驗設計重跑時的檢查清單
 
@@ -103,3 +103,5 @@
 - `YOLO模型建置流程_草案.md`：流程、標註規則、風險清單
 - `preprocessing/metadata.csv`、`metadata_split.csv`、`integrity_report.md`、`test_set_files.txt`：資料檢查與切分結果
 - `scripts/build_metadata.py`、`scripts/split_dataset.py`：可重複執行的處理腳本
+- `scripts/split_train_val.py`、`make_experiment_matrix.py`、`train_yolo.py`、`summarize_runs.py`、`eval_presence.py`、`review_band_visibility.py`：P4–P6 腳本
+- `preprocessing/metadata_final.csv`、`experiment_matrix.csv`、`band_review.csv`：後續產出
