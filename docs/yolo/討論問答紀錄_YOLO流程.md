@@ -88,6 +88,7 @@
 | 標註指南 | 建議製作含實例截圖的規則文件（未開始） |
 | train／val 切分 | 已完成腳本 `scripts/split_train_val.py`（以 `block_id` 為單位） |
 | 增強版本與實驗訓練 | 實驗矩陣 `make_experiment_matrix.py`、訓練 `train_yolo.py`、彙整 `summarize_runs.py`、評估 `eval_presence.py` 腳本已備；待標註完成後實際訓練 |
+| P7 Nano 部署 | 已備 `scripts/export_onnx.py`（ONNX 匯出＋trtexec FP16 指令）；opset 與 TensorRT 8.2 相容性待在 Nano 實測 |
 
 ## 更換實驗設計重跑時的檢查清單
 
