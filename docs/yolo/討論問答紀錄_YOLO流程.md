@@ -106,3 +106,4 @@
 - `scripts/build_metadata.py`、`scripts/split_dataset.py`：可重複執行的處理腳本
 - `scripts/split_train_val.py`、`make_experiment_matrix.py`、`train_yolo.py`、`summarize_runs.py`、`eval_presence.py`、`review_band_visibility.py`：P4–P6 腳本
 - `preprocessing/metadata_final.csv`、`experiment_matrix.csv`、`band_review.csv`：後續產出
+- `scripts/export_onnx.py`、`scripts/summarize_detections.py`：P7 ONNX 匯出；偵測結果整理成類別／數量／左中右位置（風險 11 的通報接口草案，最小框預設邊長 12 px）
