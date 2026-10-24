@@ -85,7 +85,7 @@
 | 補拍（C4） | 目前傾向不補拍，需在報告中明寫泛化範圍 |
 | 護腕可見度覆核（D5） | 已產出覆核清單 `preprocessing/band_review.csv`（`scripts/review_band_visibility.py`），待人工目視覆核 |
 | YOLO 輸出接通報（D7） | 輸出格式（類別、數量、位置）與 LLM／Line@ 接口（顏尚岳） |
-| 標註指南 | 建議製作含實例截圖的規則文件（未開始） |
+| 標註指南 | 已建立文字版 `標註指南_v0.1.md`；實例截圖待補 |
 | train／val 切分 | 已完成腳本 `scripts/split_train_val.py`（以 `block_id` 為單位） |
 | 增強版本與實驗訓練 | 實驗矩陣 `make_experiment_matrix.py`、訓練 `train_yolo.py`、彙整 `summarize_runs.py`、評估 `eval_presence.py` 腳本已備；待標註完成後實際訓練 |
 | P7 Nano 部署 | 已備 `scripts/export_onnx.py`（ONNX 匯出＋trtexec FP16 指令）；opset 與 TensorRT 8.2 相容性待在 Nano 實測 |
@@ -106,4 +106,5 @@
 - `scripts/build_metadata.py`、`scripts/split_dataset.py`：可重複執行的處理腳本
 - `scripts/split_train_val.py`、`make_experiment_matrix.py`、`train_yolo.py`、`summarize_runs.py`、`eval_presence.py`、`review_band_visibility.py`：P4–P6 腳本
 - `preprocessing/metadata_final.csv`、`experiment_matrix.csv`、`band_review.csv`：後續產出
+- `標註指南_v0.1.md`：標註規則與判斷流程（文字版）
 - `scripts/export_onnx.py`、`scripts/summarize_detections.py`：P7 ONNX 匯出；偵測結果整理成類別／數量／左中右位置（風險 11 的通報接口草案，最小框預設邊長 12 px）
