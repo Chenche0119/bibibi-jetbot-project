@@ -1,4 +1,5 @@
-person
-marker
+bicycle
+bus
 car
-two_wheeler
+motorcycle
+person
