@@ -4,3 +4,14 @@ __pycache__/
 *.pyc
 # 大型檔案與重複壓縮檔不入版控（dataset.zip 與 dataset/ 重複）
 large-files/
+
+# 訓練產物與大型原始資料
+colab_runs/local/work/
+*.pt
+*.cache
+data/task_A_alert_20261013/raw/
+
+# 交接與教學文件（僅留本機）
+交接_*.md
+教學_*.md
+colab_runs/local/results/**/*.jpg
