@@ -1,0 +1,14 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+.ipynb_checkpoints/
+
+# 車上 sender.py 旁的設定檔（可能含 broker 帳密）
+*.env
+# run.py 的通知紀錄
+logs/
+# 本地加密 broker 的憑證與密碼檔（transport/broker/secure/ 產生）
+transport/broker/secure/certs/
+transport/broker/secure/passwd
