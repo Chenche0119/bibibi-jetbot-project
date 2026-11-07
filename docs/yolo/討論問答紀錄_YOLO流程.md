@@ -108,3 +108,20 @@
 - `preprocessing/metadata_final.csv`、`experiment_matrix.csv`、`band_review.csv`：後續產出
 - `標註指南_v0.1.md`：標註規則與判斷流程（文字版）
 - `scripts/export_onnx.py`、`scripts/summarize_detections.py`：P7 ONNX 匯出；偵測結果整理成類別／數量／左中右位置（風險 11 的通報接口草案，最小框預設邊長 12 px）
+- `scripts/summarize_colab_runs.py`：彙整 `colab_runs/local/results` 實際 Colab 訓練結果（每 run 取 mAP50 最高 epoch，依 seed 計算平均與標準差）
+
+## Colab 實跑彙整（run04–run12，mAP50，best epoch）
+
+| 組別 | seeds | mAP50 平均 | 標準差 |
+|---|---|---|---|
+| run04 baseline | 3 | 0.7271 | 0.0194 |
+| run05 offline45grid | 1 | 0.6764 | - |
+| run06 rot15 | 1 | 0.7409 | - |
+| run07 rot30 | 1 | 0.7465 | - |
+| run08 rot45 | 1 | 0.7487 | - |
+| run09 offlineflip | 3 | 0.7415 | 0.0164 |
+| run10 offlinesmallangle | 1 | 0.7288 | - |
+| run11 offlinelargeangle | 1 | 0.7305 | - |
+| run12 offlineflip img416 | 3 | 0.7563 | 0.0362 |
+
+註：單 seed 組別差異（約 0.01–0.02）小於多 seed 標準差（0.016–0.036），尚不足以判定優劣；run12 標準差最大，結論需更多 seed。
