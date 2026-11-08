@@ -160,7 +160,7 @@ CONCL = {
  'run08': TBL.format(vm50='0.745', vm95='0.329', vp='0.816', vr='0.660', tm50='0.657', tm95='0.269', tp='0.798', tr='0.629', pa50='0.809', pa95='0.297', da50='0.505', da95='0.242') + '\n相對 run04（test）：mAP50 -0.020（在 ±0.03 內，不下結論）；mAP50-95 -0.077（超出雜訊，四組最差）；person AP50 -0.017、dynamic_obstacle AP50 -0.023（皆在雜訊內）。valid mAP50 0.745 為四組最高，但 test 最低，顯示 valid 對選模型的參考性有限。best 在第 49 epoch，共 69 epoch。\n\n限制：單一 seed；旋轉 45° 後外接框明顯變鬆（面積比 0.2 變 0.28）。',
 }
 
-def build(fname, run, title_md, degrees=0, offline=False, note='', seed=0, imgsz=320):
+def build(fname, run, title_md, degrees=0, offline=False, note='', seed=0, imgsz=320, train_code=None, extra_eval=None):
     nb = nbf.v4.new_notebook(); C = nb.cells
     C.append(nbf.v4.new_markdown_cell(title_md))
     C.append(nbf.v4.new_code_cell(f"RUN = '{run}'"))
@@ -169,8 +169,9 @@ def build(fname, run, title_md, degrees=0, offline=False, note='', seed=0, imgsz
     C.append(nbf.v4.new_code_cell(DOWNLOAD))
     C.append(nbf.v4.new_code_cell(MERGE))
     if offline: C.append(nbf.v4.new_code_cell(OFFLINE if offline is True else offline))
-    C.append(nbf.v4.new_code_cell(TRAIN(run, degrees, note, seed, imgsz)))
+    C.append(nbf.v4.new_code_cell(train_code or TRAIN(run, degrees, note, seed, imgsz)))
     C.append(nbf.v4.new_code_cell(EVAL.replace('imgsz=320', f'imgsz={imgsz}')))
+    if extra_eval: C.append(nbf.v4.new_code_cell(extra_eval))
     C.append(nbf.v4.new_markdown_cell('## 本版結論\n\n' + CONCL.get(run.split('_')[0], '（跑完後填寫：test 與 valid 指標、與 run04 的差異、是否超出單一 seed 的雜訊 ±0.03、限制）')))
     nbf.write(nb, os.path.join(OUT, fname))
     os.makedirs(os.path.join(OUT, 'local'), exist_ok=True)
@@ -229,3 +230,62 @@ for rid, desc, title, sd in specs4:
     hdr = HDR.format(run=f'YOLOv8n_{rid}', desc=title, chg=chg).replace('僅 seed=0 一次，', f'本版 seed={sd}；與其他 seed 合併估計變異，').replace('imgsz=320、', 'imgsz=416、')
     build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, hdr, 0, offline_code([0], (0, 1), "# 離線擴增（只作用在 train）：只做左右翻轉，不旋轉（角度 {0}）× 左右翻轉 {否,是}\n# = 2 種組合（含原圖）→ 664 × 2 = 1,328 張。valid / test 不動。"), '擴增已在上一步離線完成', sd, 416)
 print('done4')
+
+
+# ---- run19~run21（低成本組，2026-11-07）：以 run09（離線只翻轉、imgsz=320）為基準，一次只改一個因素，各 3 個 seed ----
+DATE3 = "20261107"
+FLIP_ONLY = offline_code([0], (0, 1), "# 離線擴增（只作用在 train）：只做左右翻轉，不旋轉（角度 {0}）× 左右翻轉 {否,是}\n# = 2 種組合（含原圖）→ 664 × 2 = 1,328 張。valid / test 不動。")
+
+def TRAIN_X(seed, note, aug, extra):
+    # aug：擴增相關參數；extra：epochs / patience / 損失權重等其他參數
+    return f"""# 訓練：以 run09 為基準（YOLOv8n、imgsz=320、batch=32、seed={seed}、weight_decay=0.0005），只改下面標示的因素
+# {note}
+from ultralytics import YOLO
+LAST = f'{{OUT}}/runs/{{RUN}}/weights/last.pt'
+resume = os.path.exists(LAST)  # 斷線或中斷後再執行這格，會從 last.pt 續跑
+model = YOLO(LAST if resume else 'yolov8n.pt')
+print('續跑' if resume else '從頭訓練')
+model.train(**(dict(resume=True) if resume else dict(data=f'{{DST}}/data.yaml', imgsz=320, batch=32, seed={seed}, deterministic=True,
+            weight_decay=0.0005, workers=WORKERS, device=DEVICE, project=f'{{OUT}}/runs', name=RUN, exist_ok=True, save_period=10,
+            {extra},
+            {aug})))"""
+
+AUG_OFF = "hsv_h=0, hsv_s=0, hsv_v=0, degrees=0, translate=0, scale=0, shear=0, perspective=0, flipud=0, fliplr=0, mosaic=0, mixup=0, copy_paste=0, erasing=0"
+BASE_X = "epochs=100, patience=20"
+
+# 5.1：用 valid 的 F1-信心曲線選門檻（不在 test 上選，避免洩漏），再看 test 在該門檻的 P / R
+CONF_PICK = """# 以 valid 的 F1-信心曲線選推論 conf 門檻；test 只在這個門檻上讀 P / R（不在 test 上調門檻）
+import numpy as np
+mv = best.val(data=f'{DST}/data.yaml', split='val', imgsz=320, plots=False, device=DEVICE, project=f'{OUT}/runs', name=f'{RUN}_valconf', exist_ok=True)
+px = np.asarray(mv.box.px); f1m = np.asarray(mv.box.f1_curve).mean(0)
+i = int(f1m.argmax()); print('valid 平均 F1 最大的 conf =', round(float(px[i]), 3), '｜F1 =', round(float(f1m[i]), 3))
+for k, c in enumerate(mv.box.ap_class_index):
+    fk = np.asarray(mv.box.f1_curve)[k]; j = int(fk.argmax())
+    print(mv.names[int(c)], '各類最佳 conf', round(float(px[j]), 3), '｜valid F1', round(float(fk[j]), 3))
+print('test 在 conf*：P', round(float(np.asarray(m.box.p_curve).mean(0)[i]), 3), 'R', round(float(np.asarray(m.box.r_curve).mean(0)[i]), 3),
+      '｜對照 conf=0.25 與 0.15 的 test P / R：',
+      [(t, round(float(np.asarray(m.box.p_curve).mean(0)[int(t * 999)]), 3), round(float(np.asarray(m.box.r_curve).mean(0)[int(t * 999)]), 3)) for t in (0.25, 0.15)])"""
+
+HDR3 = '# {run}｜{desc}\n\n資料：Roboflow v3（941 張；Train 664／Valid 135／Test 142），合併為 person／dynamic_obstacle。\n\n**變更（相對 run09）**\n\n{chg}\n\n共同設定：YOLOv8n、imgsz=320、batch=32、weight_decay=0.0005、離線只做左右翻轉（train 1,328 張）。本版 seed={sd}；run09 三個 seed 的 test mAP50-95 為 0.378、0.383、0.384（平均 0.382），差距要超出 seed 變異才下結論。'
+
+specs5 = [
+ ('run19', 'v3dynamic2class_flip_hsv', 'run09 加 HSV 光度擴增（建議 1.2）',
+  '- 只多開 HSV 光度擴增：hsv_h=0.015、hsv_s=0.5、hsv_v=0.3（比 Ultralytics 預設 0.7 / 0.4 保守）。幾何擴增仍全關。\n- 高斯模糊：ultralytics==8.4.183 沒有 `augmentations` 參數，只剩內建 Albumentations 的 p=0.01 模糊，等於沒開，因此本版不含模糊。',
+  dict(note='只開 HSV 光度擴增，幾何擴增全關', aug=AUG_OFF.replace('hsv_h=0, hsv_s=0, hsv_v=0', 'hsv_h=0.015, hsv_s=0.5, hsv_v=0.3'), extra=BASE_X)),
+ ('run20', 'v3dynamic2class_flip_box9dfl2', 'run09 調高 box 與 dfl 損失權重（建議 2.1）',
+  '- 只改損失權重：box 7.5 → 9.0、dfl 1.5 → 2.0（建議範圍 box 8.5～10、dfl 2.0～2.5，取偏保守的中間值）。擴增仍全關。',
+  dict(note='只改 box=9.0、dfl=2.0', aug=AUG_OFF, extra=BASE_X + ', box=9.0, dfl=2.0')),
+ ('run21', 'v3dynamic2class_flip_mosaic_close25', 'run09 開 mosaic，最後 25 epoch 關閉（建議 1.3）',
+  '- 開 mosaic=1.0，close_mosaic=25。epochs 固定 100，patience=100（等於關掉早停），否則 early stop 會在 30～75 epoch 就結束，永遠進不了關閉 mosaic 的階段。\n- 與 run09 的差異有兩個（mosaic 與早停），這是 close_mosaic 要生效的必要代價；比較時請同時看 best epoch，必要時再加一組「patience=100、mosaic=0」對照。',
+  dict(note='mosaic=1.0、close_mosaic=25、epochs=100、patience=100（關閉早停）', aug=AUG_OFF.replace('mosaic=0', 'mosaic=1.0'), extra='epochs=100, patience=100, close_mosaic=25')),
+ ('run22', 'v3dynamic2class_flip_nostop', 'run09 關掉早停、跑滿 100 epoch（run21 的控制組）',
+  '- 只關掉早停：epochs=100、patience=100，mosaic 仍關閉（close_mosaic=0）。擴增與損失權重都維持 run09。\n- 用途：與 run21 的差異只剩 mosaic，可以分開「mosaic」與「訓練更久」各自的貢獻。',
+  dict(note='mosaic 關閉、epochs=100、patience=100（關閉早停）', aug=AUG_OFF, extra='epochs=100, patience=100, close_mosaic=0')),
+]
+for rid, desc, title, chg, cfg in specs5:
+    for suffix, sd in (('', 0), ('s1', 1), ('s2', 2)):
+        run = f'{rid}{suffix}_{desc}' + (f'_seed{sd}' if sd else '')
+        hdr = HDR3.format(run=f'YOLOv8n_{rid}{suffix}', desc=title, chg=chg, sd=sd)
+        build(f'YOLOv8n_{rid}{suffix}_{desc}' + (f'_seed{sd}' if sd else '') + f'_{DATE3}.ipynb', run, hdr, 0, FLIP_ONLY, cfg['note'], sd, 320,
+              train_code=TRAIN_X(sd, cfg['note'], cfg['aug'], cfg['extra']), extra_eval=CONF_PICK)
+print('done5')
