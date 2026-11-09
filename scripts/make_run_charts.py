@@ -22,7 +22,7 @@ roots = sys.argv[2:]
 NEW_RUNS = {"run01": "v2raw5class", "run02": "v2dynamic2class", "run03": "v2dynamic2class",
             "run12": "v3dynamic2class", "run14": "v3noparked", "run15": "v3noparked", "run16": "v3noparked", "run17": "v3noparked", "run18": "v3noparked",
             "run19": "v3dynamic2class_hsv", "run20": "v3dynamic2class_loss",
-            "run21": "v3dynamic2class_mosaic", "run22": "v3dynamic2class_nostop"}
+            "run21": "v3dynamic2class_mosaic", "run22": "v3dynamic2class_nostop", "run23": "v3dynamic2class_mosaicnoclose", "run24": "v3dynamic2class_mosaicscale"}
 DATASETS = OrderedDict([
     ("v2raw5class", ("v2 raw 5-class (not comparable)", "#bab0ac")),
     ("v2dynamic2class", ("v2 dynamic 2-class (older data)", "#9c755f")),
@@ -32,6 +32,8 @@ DATASETS = OrderedDict([
     ("v3dynamic2class_loss", ("v3 dynamic 2-class + box/dfl tweak (this round)", "#7b4fa3")),
     ("v3dynamic2class_mosaic", ("v3 dynamic 2-class + mosaic/close_mosaic (this round)", "#e15759")),
     ("v3dynamic2class_nostop", ("v3 dynamic 2-class + no early stop, mosaic off (control)", "#edc948")),
+    ("v3dynamic2class_mosaicnoclose", ("v3 dynamic 2-class + mosaic, never closed", "#b07aa1")),
+    ("v3dynamic2class_mosaicscale", ("v3 dynamic 2-class + mosaic + scale/translate", "#76b7b2")),
 ])
 FIELDS = ["run_id", "group", "dataset", "variant", "seed", "imgsz", "epochs_run", "best_epoch",
           "precision", "recall", "mAP50", "mAP50-95", "val_cls_loss"]
@@ -107,7 +109,7 @@ with open(os.path.join(charts, "group_table.csv"), "w", newline="", encoding="ut
             row += [round(d[k][0], 4), "" if d[k][1] is None else round(d[k][1], 4)]
         w.writerow(row + [round(d["best_epoch"], 4)])
 
-LABEL = {"v2raw5class": "v2 raw 5-class", "v2dynamic2class": "v2 dynamic 2-class", "v3dynamic2class": "v3 dynamic 2-class", "v3noparked": "v3 no-parked", "v3dynamic2class_loss": "v3 dynamic 2-class + box/dfl", "v3dynamic2class_hsv": "v3 dynamic 2-class + HSV", "v3dynamic2class_mosaic": "v3 dynamic 2-class + mosaic", "v3dynamic2class_nostop": "v3 dynamic 2-class + no early stop (control)"}
+LABEL = {"v2raw5class": "v2 raw 5-class", "v2dynamic2class": "v2 dynamic 2-class", "v3dynamic2class": "v3 dynamic 2-class", "v3noparked": "v3 no-parked", "v3dynamic2class_loss": "v3 dynamic 2-class + box/dfl", "v3dynamic2class_hsv": "v3 dynamic 2-class + HSV", "v3dynamic2class_mosaic": "v3 dynamic 2-class + mosaic", "v3dynamic2class_nostop": "v3 dynamic 2-class + no early stop (control)", "v3dynamic2class_mosaicnoclose": "v3 dynamic 2-class + mosaic, never closed", "v3dynamic2class_mosaicscale": "v3 dynamic 2-class + mosaic + scale/translate"}
 
 
 def fmt(t):
@@ -174,7 +176,7 @@ fig.tight_layout(); fig.savefig(os.path.join(charts, "chart_scatter_runs.png"));
 
 # 4) learning curves: mean over seeds still training, per dataset panel
 fig, axs = plt.subplots(1, 3, figsize=(16.8, 4), dpi=200, sharey=True)
-panels = [("v2 (older data)", ["v2raw5class", "v2dynamic2class"]), ("v3 dynamic 2-class", ["v3dynamic2class", "v3dynamic2class_hsv", "v3dynamic2class_loss", "v3dynamic2class_mosaic", "v3dynamic2class_nostop"]), ("v3 no-parked", ["v3noparked"])]
+panels = [("v2 (older data)", ["v2raw5class", "v2dynamic2class"]), ("v3 dynamic 2-class", ["v3dynamic2class", "v3dynamic2class_hsv", "v3dynamic2class_loss", "v3dynamic2class_mosaic", "v3dynamic2class_nostop", "v3dynamic2class_mosaicnoclose", "v3dynamic2class_mosaicscale"]), ("v3 no-parked", ["v3noparked"])]
 for ax, (title, dss) in zip(axs, panels):
     n = 0
     for d in G:
@@ -189,7 +191,7 @@ for ax, (title, dss) in zip(axs, panels):
             continue
         L = max(len(c) for c in curves)
         ys = [st.mean([c[e] for c in curves if len(c) > e]) for e in range(L)]
-        special = {"v3dynamic2class_loss": ("k", 1.8), "v3dynamic2class_hsv": ("#59a14f", 1.8), "v3dynamic2class_mosaic": ("#e15759", 1.8), "v3dynamic2class_nostop": ("#edc948", 1.8)}
+        special = {"v3dynamic2class_loss": ("k", 1.8), "v3dynamic2class_hsv": ("#59a14f", 1.8), "v3dynamic2class_mosaic": ("#e15759", 1.8), "v3dynamic2class_nostop": ("#edc948", 1.8), "v3dynamic2class_mosaicnoclose": ("#b07aa1", 1.8), "v3dynamic2class_mosaicscale": ("#76b7b2", 1.8)}
         col, lw = special.get(d["dataset"], (f"C{n % 10}", 1.2))
         ax.plot(range(1, L + 1), ys, color=col, lw=lw, label=d["group"], zorder=4)
         n += 1
