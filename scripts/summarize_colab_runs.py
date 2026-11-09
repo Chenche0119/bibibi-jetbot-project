@@ -1,6 +1,6 @@
 """Summarize real Colab runs under colab_runs/local/results.
 
-Usage: python3 -I summarize_colab_runs.py [results_dir] [out.csv]
+Usage: python3 -I summarize_colab_runs.py [results_dir] [out.csv] [--md]
 
 Each run dir holds runs/<run_id>/results.csv (Ultralytics). Takes the best epoch (max mAP50)
 per run, groups runs by name with the seed suffix (sN) removed, and prints mean/std of mAP50
@@ -31,9 +31,21 @@ def delta_vs_baseline(groups, baseline_key="baseline"):
     return out
 
 
+def to_markdown(groups, deltas):
+    """Render the group table as Markdown for pasting into the discussion log."""
+    lines = ["| group | n | mAP50 mean | std | delta | verdict |", "|---|---|---|---|---|---|"]
+    for g, v in groups.items():
+        d, verdict = deltas.get(g, (None, "-"))
+        std = f"{st.stdev(v):.4f}" if len(v) > 1 else "-"
+        lines.append(f"| {g} | {len(v)} | {st.mean(v):.4f} | {std} | "
+                     f"{f'{d:+.4f}' if d is not None else '-'} | {verdict} |")
+    return "\n".join(lines)
+
+
 def main():
-    root = sys.argv[1] if len(sys.argv) > 1 else "colab_runs/local/results"
-    out = sys.argv[2] if len(sys.argv) > 2 else "colab_runs_summary.csv"
+    args = [a for a in sys.argv[1:] if a != "--md"]
+    root = args[0] if len(args) > 0 else "colab_runs/local/results"
+    out = args[1] if len(args) > 1 else "colab_runs_summary.csv"
 
     rows = []
     for path in sorted(glob.glob(os.path.join(root, "*", "runs", "*", "results.csv"))):
@@ -67,6 +79,8 @@ def main():
         d, verdict = deltas.get(g, (None, "-"))
         print(g, len(v), f"{st.mean(v):.4f}", f"{st.stdev(v):.4f}" if len(v) > 1 else "-",
               f"{d:+.4f}" if d is not None else "-", verdict, sep="\t")
+    if "--md" in sys.argv:
+        print(to_markdown(groups, deltas))
     print(f"{len(rows)} runs summarized -> {out}")
 
 

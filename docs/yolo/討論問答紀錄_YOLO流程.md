@@ -127,3 +127,5 @@
 註：單 seed 組別差異（約 0.01–0.02）小於多 seed 標準差（0.016–0.036），尚不足以判定優劣；run12 標準差最大，結論需更多 seed。
 
 補充：`summarize_colab_runs.py` 新增與 baseline 的差值欄位，僅在差值超過 baseline 標準差 2 倍時標為 above noise；目前只有 run05（offline45grid，-0.0506）超出，其餘皆在雜訊範圍內。離線測試為 `scripts/test_summarize_colab_runs.py`（以 `python3` 在 scripts 目錄執行；`-I` 會讓同目錄 import 失敗）。
+
+補充：`summarize_colab_runs.py` 加上 `--md` 旗標，可直接輸出上表的 Markdown 版本（含與 baseline 差值）。
