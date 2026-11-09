@@ -4,7 +4,7 @@
 """
 import unittest
 
-from summarize_colab_runs import delta_vs_baseline
+from summarize_colab_runs import delta_vs_baseline, to_markdown
 
 
 class DeltaTest(unittest.TestCase):
@@ -21,6 +21,12 @@ class DeltaTest(unittest.TestCase):
 
     def test_no_baseline(self):
         self.assertEqual(delta_vs_baseline({"y": [0.8]}), {})
+
+    def test_markdown_table(self):
+        g = {"run04_baseline": [0.70, 0.74], "x": [0.8]}
+        md = to_markdown(g, delta_vs_baseline(g))
+        self.assertEqual(len(md.splitlines()), 4)
+        self.assertIn("| x | 1 | 0.8000 | - |", md)
 
 
 if __name__ == "__main__":
