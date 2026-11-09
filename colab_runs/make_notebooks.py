@@ -281,6 +281,12 @@ specs5 = [
  ('run22', 'v3dynamic2class_flip_nostop', 'run09 關掉早停、跑滿 100 epoch（run21 的控制組）',
   '- 只關掉早停：epochs=100、patience=100，mosaic 仍關閉（close_mosaic=0）。擴增與損失權重都維持 run09。\n- 用途：與 run21 的差異只剩 mosaic，可以分開「mosaic」與「訓練更久」各自的貢獻。',
   dict(note='mosaic 關閉、epochs=100、patience=100（關閉早停）', aug=AUG_OFF, extra='epochs=100, patience=100, close_mosaic=0')),
+ ('run23', 'v3dynamic2class_flip_mosaic_noclose', 'run09 開 mosaic 但不關閉（拆分 run21 的 mosaic 與 close_mosaic）',
+  '- 開 mosaic=1.0，close_mosaic=0（全程開著 mosaic），epochs=100、patience=100。與 run22 相比只差 mosaic；與 run21 相比只差 close_mosaic。\n- 用途：判斷 run21 的進步來自「開 mosaic」還是「最後 25 epoch 關閉 mosaic 微調」。',
+  dict(note='mosaic=1.0、close_mosaic=0、epochs=100、patience=100', aug=AUG_OFF.replace('mosaic=0', 'mosaic=1.0'), extra='epochs=100, patience=100, close_mosaic=0')),
+ ('run24', 'v3dynamic2class_flip_mosaic_scale', 'run23 加 scale 與 translate 幾何擴增',
+  '- 在 run23（mosaic=1.0、close_mosaic=0）之上再開 scale=0.5、translate=0.1（Ultralytics 預設值），其餘擴增仍全關。\n- 用途：mosaic 通常搭配 scale 才發揮完整效果，檢查是否還有加成；與 run23 的差異只有這兩項。',
+  dict(note='mosaic=1.0、scale=0.5、translate=0.1、close_mosaic=0、epochs=100、patience=100', aug=AUG_OFF.replace('mosaic=0', 'mosaic=1.0').replace('translate=0, scale=0', 'translate=0.1, scale=0.5'), extra='epochs=100, patience=100, close_mosaic=0')),
 ]
 for rid, desc, title, chg, cfg in specs5:
     for suffix, sd in (('', 0), ('s1', 1), ('s2', 2)):
