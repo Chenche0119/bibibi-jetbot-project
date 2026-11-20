@@ -129,3 +129,5 @@
 補充：`summarize_colab_runs.py` 新增與 baseline 的差值欄位，僅在差值超過 baseline 標準差 2 倍時標為 above noise；目前只有 run05（offline45grid，-0.0506）超出，其餘皆在雜訊範圍內。離線測試為 `scripts/test_summarize_colab_runs.py`（以 `python3` 在 scripts 目錄執行；`-I` 會讓同目錄 import 失敗）。
 
 補充：`summarize_colab_runs.py` 加上 `--md` 旗標，可直接輸出上表的 Markdown 版本（含與 baseline 差值）。
+
+補充（2026-11-20 例行整理）：run19–22（HSV、box 9 / dfl 2、mosaic close 25、不早停對照，各 3 seed）的 notebook 與腳本已在分支上，但 `colab_runs/local/results` 目前只有 run04–run12 的結果，尚無法彙整。待 Colab 結果下載後，直接執行 `python3 scripts/summarize_colab_runs.py --md` 即可將 run19–22 與 run04 baseline 比較（腳本已支援 run19 以後的命名）。過去 24 小時遠端無新提交。
