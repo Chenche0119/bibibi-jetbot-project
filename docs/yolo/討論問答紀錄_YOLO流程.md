@@ -131,3 +131,24 @@
 補充：`summarize_colab_runs.py` 加上 `--md` 旗標，可直接輸出上表的 Markdown 版本（含與 baseline 差值）。
 
 補充（2026-11-20 例行整理）：run19–22（HSV、box 9 / dfl 2、mosaic close 25、不早停對照，各 3 seed）的 notebook 與腳本已在分支上，但 `colab_runs/local/results` 目前只有 run04–run12 的結果，尚無法彙整。待 Colab 結果下載後，直接執行 `python3 scripts/summarize_colab_runs.py --md` 即可將 run19–22 與 run04 baseline 比較（腳本已支援 run19 以後的命名）。過去 24 小時遠端無新提交。
+
+## gate-noon 實驗彙整（run26 對照 vs run27 加入 gate 資料，2026-11-16 本地 MPS 實跑）
+
+兩組皆以 run24（flip＋mosaic＋scale）設定、v3_noparked 資料為底，各 3 seed；唯一差別是 run27 把 gate 影片 1 加入 train（`USE_GATE = True`）。gate 影片 2 為 `gate_test`（184 張，person 36／dynamic_obstacle 144 實例），兩組都只在訓練結束後評估一次，並有檔名與 md5 洩漏檢查。
+
+| 組別 | n | test mAP50 | gate_test mAP50（conf 0.001） | gate_test person AP50 | gate_test mAP50（conf 0.25） | gate_test R（conf 0.25） |
+|---|---|---|---|---|---|---|
+| run26 對照（無 gate） | 3 | 0.886 ± 0.004 | 0.496 ± 0.068 | 0.366 ± 0.046 | 0.358 ± 0.058 | 0.367 ± 0.059 |
+| run27 加 gate | 3 | 0.885 ± 0.010 | 0.799 ± 0.006 | 0.767 ± 0.020 | 0.658 ± 0.046 | 0.678 ± 0.059 |
+
+結論：
+- 加入 gate 影片 1 後，gate_test mAP50 由 0.496 升到 0.799（+0.30，遠大於兩組標準差），person AP50 提升最多（0.37 → 0.77），代表新場景的落差主要來自資料而非超參數。
+- 原 v3 test mAP50 不變（0.886 vs 0.885），沒有因加入新資料而退步。
+- run26 在 gate_test 的 seed 間差異大（0.42–0.55），run27 收斂到 0.79–0.81，加入新場景資料也讓結果更穩定。
+- 限制：gate_test 只來自單一支影片，且與 train 的 gate 影片 1 為同一地點；跨地點泛化仍需另一地點的保留資料才能確認。
+
+工具：gate_test 指標只印在 stdout，不在 `results.csv`，因此新增 `scripts/summarize_gate_test.py` 從 `~/yolo_tmp/v4/logs/run*.log` 解析（`python3 scripts/summarize_gate_test.py ~/yolo_tmp/v4/logs --md` 可直接產出上表），離線測試為 `scripts/test_summarize_gate_test.py`。
+
+待辦：產生 run26／27 的 `colab_runs/make_v4_runs.py`、`make_gate_split.py`、`make_noparked_dataset.py` 目前只存在本機主資料夾（未入版控），建議補提交以便重現。
+
+補充（2026-11-25 例行整理）：過去 24 小時遠端無新提交。
