@@ -149,6 +149,15 @@
 
 工具：gate_test 指標只印在 stdout，不在 `results.csv`，因此新增 `scripts/summarize_gate_test.py` 從 `~/yolo_tmp/v4/logs/run*.log` 解析（`python3 scripts/summarize_gate_test.py ~/yolo_tmp/v4/logs --md` 可直接產出上表），離線測試為 `scripts/test_summarize_gate_test.py`。
 
-待辦：產生 run26／27 的 `colab_runs/make_v4_runs.py`、`make_gate_split.py`、`make_noparked_dataset.py` 目前只存在本機主資料夾（未入版控），建議補提交以便重現。
+~~待辦：產生 run26／27 的 `colab_runs/make_v4_runs.py`、`make_gate_split.py`、`make_noparked_dataset.py` 目前只存在本機主資料夾（未入版控），建議補提交以便重現。~~（2026-11-26 已補提交，見下方）
 
 補充（2026-11-25 例行整理）：過去 24 小時遠端無新提交。
+
+補充（2026-11-26 例行整理）：過去 24 小時遠端無新提交。已將 run26／27 的產生腳本補入版控以便重現：
+
+- `colab_runs/make_noparked_dataset.py`：依 `colab_runs/bike_review/bicycle_review.csv`（137 列人工覆核，parked／moving）從 v3_raw 移除停放自行車標註，產生 v3_noparked。
+- `colab_runs/make_gate_split.py`：gate-noon 資料依來源影片切成 gate_train（影片 1）／gate_test（影片 2），含檔名、md5 與 dHash 近似重複檢查；需 Roboflow 匯出 zip 與 frames_selected（皆不入版控）。
+- `colab_runs/make_v4_runs.py`：以 run24 腳本為底產生 run26（對照）／run27（加 gate）各 3 seed，並一併提交 6 支產生結果。
+- 重現性檢查：在乾淨 worktree 以已入版控的 run24 腳本重新執行 `make_v4_runs.py`，產出的 6 支 run26／27 腳本與當初實跑使用的本機版本逐位元組相同。
+
+執行順序：`make_noparked_dataset.py` → `make_gate_split.py <zip> <frames_selected>` → `make_v4_runs.py` → 執行 `colab_runs/local/YOLOv8n_run26*/run27*.py` → `scripts/summarize_gate_test.py --md`。
