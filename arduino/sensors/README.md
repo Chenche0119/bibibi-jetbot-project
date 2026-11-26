@@ -6,7 +6,7 @@
 
 ## 檔案結構
 
-建議採用 Arduino IDE 可直接開啟的 Sketch 資料夾：
+目前採用 Arduino IDE 可直接開啟的 Sketch 資料夾：
 
 ```text
 arduino/sensors/
@@ -124,7 +124,7 @@ ser.close()
 - 誰負責修改 `src/feedback.py`、`src/rangefinder.py` 及相關測試。
 - 新版三色燈只表示追蹤狀態，或仍需支援組員原先的閃爍、多燈組合與繞行狀態。
 - Python 與 Arduino 誰負責保活，以及車子在跟丟、USB 中斷、感測器無效時的**實際馬達停止**方式。
-- 最終韌體的唯一燒錄入口和目錄（目前 GitHub `arduino/sensors/*.ino` 直接平鋪，不符合 Arduino IDE 最佳 Sketch 資料夾結構）。
+- 最終 Arduino 韌體已整理至 `arduino/sensors/JetBot_Sensors/`；仍須由組員確認整個專題採用的唯一燒錄入口。
 
 ## 已知限制與後續改善
 
