@@ -161,3 +161,11 @@
 - 重現性檢查：在乾淨 worktree 以已入版控的 run24 腳本重新執行 `make_v4_runs.py`，產出的 6 支 run26／27 腳本與當初實跑使用的本機版本逐位元組相同。
 
 執行順序：`make_noparked_dataset.py` → `make_gate_split.py <zip> <frames_selected>` → `make_v4_runs.py` → 執行 `colab_runs/local/YOLOv8n_run26*/run27*.py` → `scripts/summarize_gate_test.py --md`。
+
+補充（2026-11-27 例行整理）：過去 24 小時遠端提交集中在 `main`（arduino 感測器程式整理）與 `train/yolov8n-analysis-tools`（run13–18／25–27 分析工具），`yolo-model-design` 無新提交。本輪在 `scripts/summarize_gate_test.py` 加上 `--baseline runNN`：對其他組別逐指標計算與基準組的差值，並沿用 `summarize_colab_runs.py` 的規則（|差值| > 基準組標準差 2 倍才標為 above noise）。以本機 run26／27 log 執行 `python3 scripts/summarize_gate_test.py ~/yolo_tmp/v4/logs --md --baseline run26`：
+
+| group vs run26 | test_mAP50 | gate0.001_mAP50 | gate0.001_person_AP50 | gate0.25_mAP50 | gate0.25_R |
+|---|---|---|---|---|---|
+| run27 | -0.001 (within noise) | +0.303 (above noise) | +0.401 (above noise) | +0.300 (above noise) | +0.311 (above noise) |
+
+與上方結論一致：gate 資料帶來的提升在 gate_test 各指標都超出雜訊，原 test 則維持不變。之後新增 gate 相關組別（run28 以後）可直接用同一指令與 run26 比較。

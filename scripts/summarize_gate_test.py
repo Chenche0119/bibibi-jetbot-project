@@ -1,12 +1,14 @@
 """Summarize gate_test results from local run logs (run26 / run27 style).
 
-Usage: python3 summarize_gate_test.py [logs_dir] [--md]
+Usage: python3 summarize_gate_test.py [logs_dir] [--md] [--baseline runNN]
 
 The v4 run scripts print the held-out gate_test evaluation only to stdout, so results.csv
 does not hold it. This script reads <logs_dir>/run*.log and pulls, per run:
   - test mAP50 (original v3 test split, line starting with "mAP50 ")
   - gate_test mAP50 / P / R at conf=0.001 and conf=0.25, plus person AP50 at conf=0.001
 Runs are grouped by name with the seed suffix (sN) removed and reported as mean / std.
+With --baseline runNN, every other group also gets, per metric, the delta against that group and a
+verdict ('above noise' only when |delta| > 2 x baseline std, the same rule as summarize_colab_runs).
 gate_test is evaluation-only: it must not be used to pick epochs, conf thresholds or seeds.
 """
 import glob, os, re, statistics as st, sys
@@ -69,8 +71,55 @@ def to_markdown(summary, keys=KEYS):
     return "\n".join(lines)
 
 
+def compare_to_baseline(summary, baseline, keys=KEYS):
+    """Return {group: {key: (delta, verdict)}} for every group other than baseline."""
+    base = summary.get(baseline)
+    if base is None:
+        raise KeyError(f"baseline group {baseline!r} not found; groups: {sorted(summary)}")
+    out = {}
+    for g, d in summary.items():
+        if g == baseline:
+            continue
+        row = {}
+        for k in keys:
+            if k not in d or k not in base:
+                continue
+            delta = d[k][0] - base[k][0]
+            b_std = base[k][1]
+            if b_std is None:
+                verdict = "no baseline std"
+            else:
+                verdict = "above noise" if abs(delta) > 2 * b_std else "within noise"
+            row[k] = (delta, verdict)
+        out[g] = row
+    return out
+
+
+def comparison_markdown(comparison, baseline, keys=KEYS):
+    lines = [f"| group vs {baseline} | " + " | ".join(keys) + " |", "|---|" + "---|" * len(keys)]
+    for g, row in sorted(comparison.items()):
+        cells = [f"{row[k][0]:+.3f} ({row[k][1]})" if k in row else "-" for k in keys]
+        lines.append(f"| {g} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+def parse_args(argv):
+    md, baseline, rest = False, None, []
+    it = iter(argv)
+    for a in it:
+        if a == "--md":
+            md = True
+        elif a == "--baseline":
+            baseline = next(it, None)
+            if baseline is None:
+                sys.exit("--baseline needs a group name, e.g. --baseline run26")
+        else:
+            rest.append(a)
+    return md, baseline, rest
+
+
 def main():
-    args = [a for a in sys.argv[1:] if a != "--md"]
+    md, baseline, args = parse_args(sys.argv[1:])
     root = args[0] if args else os.path.expanduser("~/yolo_tmp/v4/logs")
     runs = {}
     for path in sorted(glob.glob(os.path.join(root, "run*.log"))):
@@ -81,8 +130,16 @@ def main():
     for run_id, m in runs.items():
         print(run_id, *(f"{k}={m[k]:.3f}" for k in KEYS if k in m), sep="\t")
     summary = summarize(runs, KEYS)
-    if "--md" in sys.argv:
+    if md:
         print(to_markdown(summary))
+    if baseline:
+        comparison = compare_to_baseline(summary, baseline)
+        if md:
+            print()
+            print(comparison_markdown(comparison, baseline))
+        else:
+            for g, row in sorted(comparison.items()):
+                print(f"{g} vs {baseline}", *(f"{k}={d:+.3f} {v}" for k, (d, v) in row.items()), sep="\t")
     print(f"{len(runs)} run logs parsed from {root}")
 
 

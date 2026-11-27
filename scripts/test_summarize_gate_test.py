@@ -4,7 +4,8 @@
 """
 import unittest
 
-from summarize_gate_test import parse_log, summarize, to_markdown
+from summarize_gate_test import (compare_to_baseline, comparison_markdown, parse_args, parse_log,
+                                 summarize, to_markdown)
 
 LOG = (
     "progress 10%\rprogress 100%\n"
@@ -37,6 +38,34 @@ class ParseTest(unittest.TestCase):
         md = to_markdown(s, ["gate0.001_mAP50"])
         self.assertIn("| run26 | 1 | 0.400 |", md)
         self.assertIn("| run27 | 2 | 0.750 ± 0.071 |", md)
+
+
+class BaselineTest(unittest.TestCase):
+    def setUp(self):
+        runs = {"run26": {"a": 0.40, "b": 0.88}, "run26s1": {"a": 0.50, "b": 0.89},
+                "run27": {"a": 0.80, "b": 0.885}, "run27s1": {"a": 0.79, "b": 0.88},
+                "run28": {"a": 0.42}}
+        self.s = summarize(runs, ["a", "b"])
+
+    def test_verdicts(self):
+        c = compare_to_baseline(self.s, "run26", ["a", "b"])
+        self.assertNotIn("run26", c)
+        self.assertAlmostEqual(c["run27"]["a"][0], 0.345)
+        self.assertEqual(c["run27"]["a"][1], "above noise")
+        self.assertEqual(c["run27"]["b"][1], "within noise")
+        self.assertEqual(c["run28"]["a"][1], "within noise")
+        self.assertNotIn("b", c["run28"])
+
+    def test_no_baseline_std_and_missing(self):
+        s = summarize({"run26": {"a": 0.4}, "run27": {"a": 0.8}}, ["a"])
+        self.assertEqual(compare_to_baseline(s, "run26", ["a"])["run27"]["a"][1], "no baseline std")
+        with self.assertRaises(KeyError):
+            compare_to_baseline(s, "run99", ["a"])
+
+    def test_markdown_and_args(self):
+        c = compare_to_baseline(self.s, "run26", ["a"])
+        self.assertIn("| run27 | +0.345 (above noise) |", comparison_markdown(c, "run26", ["a"]))
+        self.assertEqual(parse_args(["logs", "--baseline", "run26", "--md"]), (True, "run26", ["logs"]))
 
 
 if __name__ == "__main__":
