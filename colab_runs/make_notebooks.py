@@ -35,6 +35,11 @@ if not os.path.exists(f'{SRC}/data.yaml'):
     rf = Roboflow(api_key=KEY)
     rf.workspace("ssudscompanionrobot").project("alert-yolo-v1").version(3).download("yolov8", location=SRC)
 print('v3 資料：', SRC)'''
+DOWNLOAD_LOCAL = '''# 【標註規則已修改（2026/11/06）】不標停放的自行車：與 run01～12 使用的標註不同，test 指標不可直接比較
+# 使用本機衍生資料（由 colab_runs/make_noparked_dataset.py 從 v3_raw 建立，移除停放自行車標註；不下載、不耗 Roboflow 點數）
+SRC = f'{WORK}/{srcname}'
+assert os.path.exists(f'{SRC}/data.yaml'), f'找不到 {SRC}；請先執行 colab_runs/make_noparked_dataset.py'
+print('資料：', SRC)'''
 MERGE = '''# 5 類合併為 2 類：person=0、其餘（bicycle/bus/car/motorcycle）=dynamic_obstacle=1
 # 只改標籤檔，不耗 Roboflow 點數；遇到 polygon 時轉成外接矩形
 import yaml, shutil, glob, collections
@@ -115,15 +120,15 @@ def offline_code(angles, flips, head):
     assert old in c
     return c.replace(old, head)
 
-def TRAIN(run, degrees, note, seed=0, imgsz=320):
-    return f'''# 訓練：設定與 run02 相同（YOLOv8n、imgsz={imgsz}、epochs=100、patience=20、batch=32、seed={seed}、weight_decay=0.0005）
+def TRAIN(run, degrees, note, seed=0, imgsz=320, epochs=100, patience=20):
+    return f'''# 訓練：設定與 run02 相同（YOLOv8n、imgsz={imgsz}、epochs={epochs}、patience={patience}、batch=32、seed={seed}、weight_decay=0.0005）
 # 內建擴增全部關閉；{note}
 from ultralytics import YOLO
 LAST = f'{{OUT}}/runs/{{RUN}}/weights/last.pt'
 resume = os.path.exists(LAST)  # 斷線或中斷後再執行這格，會從 last.pt 續跑（epoch 與學習率接續）
 model = YOLO(LAST if resume else 'yolov8n.pt')
 print('續跑' if resume else '從頭訓練')
-model.train(**(dict(resume=True) if resume else dict(data=f'{{DST}}/data.yaml', imgsz={imgsz}, epochs=100, patience=20, batch=32, seed={seed}, deterministic=True,
+model.train(**(dict(resume=True) if resume else dict(data=f'{{DST}}/data.yaml', imgsz={imgsz}, epochs={epochs}, patience={patience}, batch=32, seed={seed}, deterministic=True,
             weight_decay=0.0005, workers=WORKERS, device=DEVICE, project=f'{{OUT}}/runs', name=RUN, exist_ok=True, save_period=10,
             hsv_h=0, hsv_s=0, hsv_v=0, degrees={degrees}, translate=0, scale=0, shear=0, perspective=0,
             flipud=0, fliplr=0, mosaic=0, mixup=0, copy_paste=0, erasing=0)))'''
@@ -155,24 +160,38 @@ CONCL = {
  'run12': TBL.format(vm50='0.794', vm95='0.429', vp='0.869', vr='0.698', tm50='0.648', tm95='0.341', tp='0.714', tr='0.601', pa50='0.733', pa95='0.354', da50='0.563', da95='0.327') + '\n\nseed=0；imgsz=416，其餘同 run09。best 在第 9 epoch，共 29 epoch（約 8 分鐘）。與同 seed 的 run09（320）相比：test mAP50 -0.042、mAP50-95 -0.037。三個 seed 的平均比較見報告 v0.3 第 4.3 節。',
  'run12s1': TBL.format(vm50='0.749', vm95='0.397', vp='0.869', vr='0.621', tm50='0.700', tm95='0.351', tp='0.709', tr='0.693', pa50='0.779', pa95='0.352', da50='0.622', da95='0.350') + '\n\nseed=1；imgsz=416。best 在第 26 epoch，共 46 epoch（約 13 分鐘）。與同 seed 的 run09 相比：test mAP50 +0.014、mAP50-95 -0.032。',
  'run12s2': TBL.format(vm50='0.688', vm95='0.388', vp='0.731', vr='0.654', tm50='0.713', tm95='0.364', tp='0.774', tr='0.680', pa50='0.796', pa95='0.367', da50='0.629', da95='0.361') + '\n\nseed=2；imgsz=416。best 在第 45 epoch，共 65 epoch（約 18 分鐘）。與同 seed 的 run09 相比：test mAP50 -0.010、mAP50-95 -0.020。\n\n三個 seed 的平均：imgsz=416 的 test mAP50 0.687 ± 0.034（run09 為 0.700 ± 0.020）、mAP50-95 0.352 ± 0.012（run09 為 0.382 ± 0.003）。結論：imgsz=416 沒有改善，mAP50-95 反而三個 seed 皆較低。',
+ 'run13': TBL.format(vm50='0.730', vm95='0.409', vp='0.733', vr='0.681', tm50='0.713', tm95='0.404', tp='0.761', tr='0.680', pa50='0.762', pa95='0.384', da50='0.664', da95='0.425') + '\n\nseed=0；best 在第 23 epoch，共 43 epoch。使用修訂後的標註規則（不標停放的自行車；test 的 dynamic_obstacle 為 69 個），與 run01～12 的 test 不可直接比較。\n\nrun13 三個 seed 的 test 平均：mAP50 0.733 ± 0.017、dynamic_obstacle AP50 0.656 ± 0.011、dynamic_obstacle recall 0.638 ± 0.025（見報告 v0.3 第 4.5 節）。',
+ 'run13s1': TBL.format(vm50='0.682', vm95='0.384', vp='0.866', vr='0.562', tm50='0.744', tm95='0.413', tp='0.819', tr='0.671', pa50='0.826', pa95='0.407', da50='0.661', da95='0.418') + '\n\nseed=1；best 在第 29 epoch，共 49 epoch。使用修訂後的標註規則（不標停放的自行車；test 的 dynamic_obstacle 為 69 個），與 run01～12 的 test 不可直接比較。\n\nrun13 三個 seed 的 test 平均：mAP50 0.733 ± 0.017、dynamic_obstacle AP50 0.656 ± 0.011、dynamic_obstacle recall 0.638 ± 0.025（見報告 v0.3 第 4.5 節）。',
+ 'run13s2': TBL.format(vm50='0.731', vm95='0.407', vp='0.787', vr='0.684', tm50='0.741', tm95='0.402', tp='0.825', tr='0.674', pa50='0.838', pa95='0.408', da50='0.644', da95='0.396') + '\n\nseed=2；best 在第 25 epoch，共 45 epoch。使用修訂後的標註規則（不標停放的自行車；test 的 dynamic_obstacle 為 69 個），與 run01～12 的 test 不可直接比較。\n\nrun13 三個 seed 的 test 平均：mAP50 0.733 ± 0.017、dynamic_obstacle AP50 0.656 ± 0.011、dynamic_obstacle recall 0.638 ± 0.025（見報告 v0.3 第 4.5 節）。',
+ 'run14': TBL.format(vm50='0.745', vm95='0.440', vp='0.827', vr='0.661', tm50='0.760', tm95='0.422', tp='0.865', tr='0.687', pa50='0.838', pa95='0.400', da50='0.682', da95='0.445') + '\n\nseed=0；best 在第 28 epoch，共 48 epoch。使用修訂後的標註規則（不標停放的自行車；test 的 dynamic_obstacle 為 69 個），與 run01～12 的 test 不可直接比較。\n\n與同 seed 的 run13 相比：test mAP50 +0.047、dynamic_obstacle AP50 +0.018、recall -0.027。run14 三個 seed 的 test 平均：mAP50 0.732 ± 0.031（run13：0.733 ± 0.017）、dynamic_obstacle AP50 0.657 ± 0.030（run13：0.656 ± 0.011）、recall 0.595 ± 0.051（run13：0.638 ± 0.025）。結論：新規則下翻轉沒有可辨識的優勢。',
+ 'run14s1': TBL.format(vm50='0.732', vm95='0.398', vp='0.854', vr='0.676', tm50='0.699', tm95='0.387', tp='0.835', tr='0.626', pa50='0.773', pa95='0.383', da50='0.624', da95='0.392') + '\n\nseed=1；best 在第 32 epoch，共 52 epoch。使用修訂後的標註規則（不標停放的自行車；test 的 dynamic_obstacle 為 69 個），與 run01～12 的 test 不可直接比較。\n\n與同 seed 的 run13 相比：test mAP50 -0.045、dynamic_obstacle AP50 -0.037、recall -0.073。run14 三個 seed 的 test 平均：mAP50 0.732 ± 0.031（run13：0.733 ± 0.017）、dynamic_obstacle AP50 0.657 ± 0.030（run13：0.656 ± 0.011）、recall 0.595 ± 0.051（run13：0.638 ± 0.025）。結論：新規則下翻轉沒有可辨識的優勢。',
+ 'run14s2': TBL.format(vm50='0.727', vm95='0.410', vp='0.856', vr='0.659', tm50='0.738', tm95='0.394', tp='0.785', tr='0.672', pa50='0.812', pa95='0.397', da50='0.664', da95='0.390') + '\n\nseed=2；best 在第 33 epoch，共 53 epoch。使用修訂後的標註規則（不標停放的自行車；test 的 dynamic_obstacle 為 69 個），與 run01～12 的 test 不可直接比較。\n\n與同 seed 的 run13 相比：test mAP50 -0.003、dynamic_obstacle AP50 +0.020、recall -0.029。run14 三個 seed 的 test 平均：mAP50 0.732 ± 0.031（run13：0.733 ± 0.017）、dynamic_obstacle AP50 0.657 ± 0.030（run13：0.656 ± 0.011）、recall 0.595 ± 0.051（run13：0.638 ± 0.025）。結論：新規則下翻轉沒有可辨識的優勢。',
+ 'run15': TBL.format(vm50='0.662', vm95='0.377', vp='0.774', vr='0.594', tm50='0.686', tm95='0.383', tp='0.780', tr='0.616', pa50='0.782', pa95='0.399', da50='0.590', da95='0.368') + '\n\nseed=0；train 每 2 張留 1 張（332 張）；best 在第 46 epoch，共 66 epoch。使用修訂後的標註規則；test 為 69 個 dynamic_obstacle。與 run13 的 3 個 seed 平均（mAP50 0.733）相比，本組 3 個 seed 平均 test mAP50 0.688 ± 0.008、dynamic_obstacle AP50 0.594 ± 0.012、recall 0.522 ± 0.038：影格減少使指標下降（見報告 v0.3 第 4.8 節）。注意：train 變少時每個 epoch 的更新次數也變少。',
+ 'run15s1': TBL.format(vm50='0.624', vm95='0.357', vp='0.888', vr='0.514', tm50='0.682', tm95='0.368', tp='0.809', tr='0.582', pa50='0.779', pa95='0.387', da50='0.585', da95='0.349') + '\n\nseed=1；train 每 2 張留 1 張（332 張）；best 在第 30 epoch，共 50 epoch。使用修訂後的標註規則；test 為 69 個 dynamic_obstacle。與 run13 的 3 個 seed 平均（mAP50 0.733）相比，本組 3 個 seed 平均 test mAP50 0.688 ± 0.008、dynamic_obstacle AP50 0.594 ± 0.012、recall 0.522 ± 0.038：影格減少使指標下降（見報告 v0.3 第 4.8 節）。注意：train 變少時每個 epoch 的更新次數也變少。',
+ 'run15s2': TBL.format(vm50='0.666', vm95='0.374', vp='0.806', vr='0.596', tm50='0.697', tm95='0.381', tp='0.792', tr='0.631', pa50='0.787', pa95='0.396', da50='0.607', da95='0.366') + '\n\nseed=2；train 每 2 張留 1 張（332 張）；best 在第 31 epoch，共 51 epoch。使用修訂後的標註規則；test 為 69 個 dynamic_obstacle。與 run13 的 3 個 seed 平均（mAP50 0.733）相比，本組 3 個 seed 平均 test mAP50 0.688 ± 0.008、dynamic_obstacle AP50 0.594 ± 0.012、recall 0.522 ± 0.038：影格減少使指標下降（見報告 v0.3 第 4.8 節）。注意：train 變少時每個 epoch 的更新次數也變少。',
+ 'run16': TBL.format(vm50='0.627', vm95='0.337', vp='0.840', vr='0.533', tm50='0.603', tm95='0.312', tp='0.795', tr='0.506', pa50='0.730', pa95='0.346', da50='0.476', da95='0.278') + '\n\nseed=0；train 每 4 張留 1 張（166 張）；best 在第 46 epoch，共 66 epoch。使用修訂後的標註規則；test 為 69 個 dynamic_obstacle。與 run13 的 3 個 seed 平均（mAP50 0.733）相比，本組 3 個 seed 平均 test mAP50 0.610 ± 0.024、dynamic_obstacle AP50 0.493 ± 0.047、recall 0.412 ± 0.077：影格減少使指標下降（見報告 v0.3 第 4.8 節）。注意：train 變少時每個 epoch 的更新次數也變少。',
+ 'run16s1': TBL.format(vm50='0.610', vm95='0.341', vp='0.801', vr='0.500', tm50='0.590', tm95='0.306', tp='0.663', tr='0.539', pa50='0.724', pa95='0.353', da50='0.456', da95='0.260') + '\n\nseed=1；train 每 4 張留 1 張（166 張）；best 在第 34 epoch，共 54 epoch。使用修訂後的標註規則；test 為 69 個 dynamic_obstacle。與 run13 的 3 個 seed 平均（mAP50 0.733）相比，本組 3 個 seed 平均 test mAP50 0.610 ± 0.024、dynamic_obstacle AP50 0.493 ± 0.047、recall 0.412 ± 0.077：影格減少使指標下降（見報告 v0.3 第 4.8 節）。注意：train 變少時每個 epoch 的更新次數也變少。',
+ 'run16s2': TBL.format(vm50='0.622', vm95='0.326', vp='0.724', vr='0.547', tm50='0.636', tm95='0.305', tp='0.692', tr='0.577', pa50='0.726', pa95='0.311', da50='0.546', da95='0.300') + '\n\nseed=2；train 每 4 張留 1 張（166 張）；best 在第 31 epoch，共 51 epoch。使用修訂後的標註規則；test 為 69 個 dynamic_obstacle。與 run13 的 3 個 seed 平均（mAP50 0.733）相比，本組 3 個 seed 平均 test mAP50 0.610 ± 0.024、dynamic_obstacle AP50 0.493 ± 0.047、recall 0.412 ± 0.077：影格減少使指標下降（見報告 v0.3 第 4.8 節）。注意：train 變少時每個 epoch 的更新次數也變少。',
  'run06': TBL.format(vm50='0.697', vm95='0.323', vp='0.724', vr='0.678', tm50='0.691', tm95='0.295', tp='0.743', tr='0.645', pa50='0.847', pa95='0.331', da50='0.535', da95='0.259') + '\n相對 run04（test）：mAP50 +0.014（在 ±0.03 內，不下結論）；mAP50-95 -0.051（超出雜訊）；person AP50 +0.021、dynamic_obstacle AP50 +0.007（皆在雜訊內）；dynamic_obstacle recall 0.495 → 0.549。best 在第 18 epoch，共 38 epoch。\n\n限制：單一 seed；mAP50-95 下降可能與旋轉後外接框變鬆有關（未驗證）；valid 只有 60 個 dynamic_obstacle，valid 指標變動大。',
  'run07': TBL.format(vm50='0.701', vm95='0.356', vp='0.763', vr='0.699', tm50='0.654', tm95='0.307', tp='0.691', tr='0.671', pa50='0.759', pa95='0.335', da50='0.550', da95='0.279') + '\n相對 run04（test）：mAP50 -0.023（在 ±0.03 內，不下結論）；mAP50-95 -0.039（超出雜訊）；person AP50 -0.067（超出雜訊，變差）；dynamic_obstacle AP50 +0.022（雜訊內），recall 0.495 → 0.626（本組最高）。best 在第 34 epoch，共 54 epoch。\n\n限制：單一 seed；person 下降與 dynamic_obstacle 上升互相抵銷，整體 mAP50 看不出差異。',
  'run08': TBL.format(vm50='0.745', vm95='0.329', vp='0.816', vr='0.660', tm50='0.657', tm95='0.269', tp='0.798', tr='0.629', pa50='0.809', pa95='0.297', da50='0.505', da95='0.242') + '\n相對 run04（test）：mAP50 -0.020（在 ±0.03 內，不下結論）；mAP50-95 -0.077（超出雜訊，四組最差）；person AP50 -0.017、dynamic_obstacle AP50 -0.023（皆在雜訊內）。valid mAP50 0.745 為四組最高，但 test 最低，顯示 valid 對選模型的參考性有限。best 在第 49 epoch，共 69 epoch。\n\n限制：單一 seed；旋轉 45° 後外接框明顯變鬆（面積比 0.2 變 0.28）。',
 }
 
-def build(fname, run, title_md, degrees=0, offline=False, note='', seed=0, imgsz=320, train_code=None, extra_eval=None):
+def build(fname, run, title_md, degrees=0, offline=False, note='', seed=0, imgsz=320, srcname='v3_raw', epochs=100, patience=20, train_code=None, extra_eval=None):
     nb = nbf.v4.new_notebook(); C = nb.cells
     C.append(nbf.v4.new_markdown_cell(title_md))
     C.append(nbf.v4.new_code_cell(f"RUN = '{run}'"))
     C.append(nbf.v4.new_code_cell(SETUP))
     C.append(nbf.v4.new_code_cell(DRIVE.replace('{run}', run)))
-    C.append(nbf.v4.new_code_cell(DOWNLOAD))
+    C.append(nbf.v4.new_code_cell(DOWNLOAD if srcname == 'v3_raw' else DOWNLOAD_LOCAL.replace('{srcname}', srcname).replace('請先執行 colab_runs/make_noparked_dataset.py', ('請先執行 colab_runs/make_noparked_dataset.py 與 make_stride_datasets.py' if '_s' in srcname.replace('v3_noparked', '') else '請先執行 colab_runs/make_noparked_dataset.py'))))
     C.append(nbf.v4.new_code_cell(MERGE))
     if offline: C.append(nbf.v4.new_code_cell(OFFLINE if offline is True else offline))
-    C.append(nbf.v4.new_code_cell(train_code or TRAIN(run, degrees, note, seed, imgsz)))
+    C.append(nbf.v4.new_code_cell(train_code or TRAIN(run, degrees, note, seed, imgsz, epochs, patience)))
     C.append(nbf.v4.new_code_cell(EVAL.replace('imgsz=320', f'imgsz={imgsz}')))
     if extra_eval: C.append(nbf.v4.new_code_cell(extra_eval))
-    C.append(nbf.v4.new_markdown_cell('## 本版結論\n\n' + CONCL.get(run.split('_')[0], '（跑完後填寫：test 與 valid 指標、與 run04 的差異、是否超出單一 seed 的雜訊 ±0.03、限制）')))
+    _concl = '## 本版結論\n\n' + CONCL.get(run.split('_')[0], '（跑完後填寫：test 與 valid 指標、與 run04 的差異、是否超出單一 seed 的雜訊 ±0.03、限制）' + ('' if srcname == 'v3_raw' else '\n\n**注意**：本版使用修訂後的標註規則（不標停放的自行車），test 為不同的評估集，與 run01～12 不可直接比較。'))
+    _concl = _concl.replace('dynamic_obstacle（91）', 'dynamic_obstacle（91）' if srcname == 'v3_raw' else 'dynamic_obstacle（69）')
+    C.append(nbf.v4.new_markdown_cell(_concl))
     nbf.write(nb, os.path.join(OUT, fname))
     os.makedirs(os.path.join(OUT, 'local'), exist_ok=True)
     py = [f'# 本地版：由 {fname} 自動產生，內容相同。執行前：pip install ultralytics==8.4.183 roboflow；export ROBOFLOW_API_KEY=...\n']
@@ -181,7 +200,9 @@ def build(fname, run, title_md, degrees=0, offline=False, note='', seed=0, imgsz
             py.append(c.source + '\n')
     open(os.path.join(OUT, 'local', fname.replace('.ipynb', '.py')), 'w').write('\n\n'.join(py))
 
-HDR = '# {run}｜{desc}\n\n資料：Roboflow v3（`v3-raw-640-5class-20261103`，941 張；Train 664／Valid 135／Test 142），合併為 person／dynamic_obstacle。\n\n**變更（相對前一版）**\n\n{chg}\n\n共同設定：YOLOv8n、imgsz=320、epochs=100、patience=20、batch=32、seed=0、weight_decay=0.0005。僅 seed=0 一次，差距在約 0.03 內不下結論。'
+RULE_OLD = '**標註規則版本：舊**（含停放自行車標註）。2026/11/06 起規則改為「不標停放的自行車」（見報告 v0.3 第 4.5 節）；本版維持舊規則，其 test 指標不可與 run13 以後直接比較。'
+RULE_NEW = '**標註規則版本：新（2026/11/06 修訂）**：不標停放的自行車（含暫時停放；被牽行視為行駛中），由 `v3_raw` 移除 72 個 bicycle 標註（train 43／valid 7／test 22）而成 `v3_noparked`，Roboflow 未修改。本版的 test 與 run01～12 不是同一份評估，指標不可直接比較。'
+HDR = '# {run}｜{desc}\n\n資料：Roboflow v3（`v3-raw-640-5class-20261103`，941 張；Train 664／Valid 135／Test 142），合併為 person／dynamic_obstacle。\n\n{rule}\n\n**變更（相對前一版）**\n\n{chg}\n\n共同設定：YOLOv8n、imgsz=320、epochs=100、patience=20、batch=32、seed=0、weight_decay=0.0005。僅 seed=0 一次，差距在約 0.03 內不下結論。'
 specs = [
  ('run04', 'v3dynamic2class_baseline', 'v3 raw baseline（無擴增）', '- 資料由 v2 換成 v3（train +165、valid +45、test +67，同一天早上、同一人行道）。\n- 擴增全部關閉，作為 run05～run08 的對照。', 0, False, '本版不做任何擴增'),
  ('run05', 'v3dynamic2class_offline45grid', '離線擴增：45° 網格 × 左右翻轉', '- 只擴增 train：角度 {-180,-135,-90,-45,0,45,90,135}（-180 與 180 相同，已去重）× 左右翻轉 = 16 種組合（含原圖），664 → 10,624 張。\n- 本版為離線產生的固定資料集；內建擴增關閉。\n- 與 run06～08 的差異有兩個（大角度與翻轉），結果只能整體比較，無法分別歸因。', 0, True, '擴增已在上一步離線完成'),
@@ -191,7 +212,7 @@ specs = [
 ]
 for rid, desc, title, chg, deg, off, note in specs:
     run = f'{rid}_{desc}'
-    build(f'YOLOv8n_{rid}_{desc}_{DATE}.ipynb', run, HDR.format(run=f'YOLOv8n_{rid}', desc=title, chg=chg), deg, off, note)
+    build(f'YOLOv8n_{rid}_{desc}_{DATE}.ipynb', run, HDR.format(rule=RULE_OLD, run=f'YOLOv8n_{rid}', desc=title, chg=chg), deg, off, note)
 print('done')
 
 DATE2 = "20261104"
@@ -205,7 +226,7 @@ specs2 = [
 ]
 for rid, desc, title, chg, off, note in specs2:
     run = f'{rid}_{desc}'
-    build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, HDR.format(run=f'YOLOv8n_{rid}', desc=title, chg=chg), 0, off, note)
+    build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, HDR.format(rule=RULE_OLD, run=f'YOLOv8n_{rid}', desc=title, chg=chg), 0, off, note)
 print('done2')
 
 specs3 = [
@@ -216,7 +237,7 @@ specs3 = [
 ]
 for rid, desc, title, chg, deg, off, note, sd in specs3:
     run = f'{rid}_{desc}'
-    build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, HDR.format(run=f'YOLOv8n_{rid}', desc=title, chg=chg).replace('僅 seed=0 一次，', f'本版 seed={sd}；與 seed=0 的 run 合併估計變異，'), deg, off, note, sd)
+    build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, HDR.format(rule=RULE_OLD, run=f'YOLOv8n_{rid}', desc=title, chg=chg).replace('僅 seed=0 一次，', f'本版 seed={sd}；與 seed=0 的 run 合併估計變異，'), deg, off, note, sd)
 print('done3')
 
 specs4 = [
@@ -227,9 +248,51 @@ specs4 = [
 for rid, desc, title, sd in specs4:
     run = f'{rid}_{desc}'
     chg = f'- 與 run09（離線只做左右翻轉，train 1,328 張）相同，僅訓練與評估的 imgsz 由 320 改為 416（seed={sd}）。\n- 目的：檢驗較大輸入尺寸是否改善小目標與 dynamic_obstacle 的 recall；同時記錄推論速度。與 run09 的 3 個 seed 比較。'
-    hdr = HDR.format(run=f'YOLOv8n_{rid}', desc=title, chg=chg).replace('僅 seed=0 一次，', f'本版 seed={sd}；與其他 seed 合併估計變異，').replace('imgsz=320、', 'imgsz=416、')
+    hdr = HDR.format(rule=RULE_OLD, run=f'YOLOv8n_{rid}', desc=title, chg=chg).replace('僅 seed=0 一次，', f'本版 seed={sd}；與其他 seed 合併估計變異，').replace('imgsz=320、', 'imgsz=416、')
     build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, hdr, 0, offline_code([0], (0, 1), "# 離線擴增（只作用在 train）：只做左右翻轉，不旋轉（角度 {0}）× 左右翻轉 {否,是}\n# = 2 種組合（含原圖）→ 664 × 2 = 1,328 張。valid / test 不動。"), '擴增已在上一步離線完成', sd, 416)
 print('done4')
+
+HDR_NP = HDR.replace('資料：Roboflow v3（`v3-raw-640-5class-20261103`，941 張；Train 664／Valid 135／Test 142），', '資料：v3 衍生資料 `v3_noparked`（由 Roboflow v3 移除 72 個停放自行車標註：train 43／valid 7／test 22；影像仍為 Train 664／Valid 135／Test 142 張），')
+assert HDR_NP != HDR
+specs5 = [
+ ('run13', 'v3noparked_baseline', 'run04 設定改用「不標停放自行車」資料（seed=0）', 0, False, 0),
+ ('run13s1', 'v3noparked_baseline_seed1', 'run04 設定改用「不標停放自行車」資料（seed=1）', 0, False, 1),
+ ('run13s2', 'v3noparked_baseline_seed2', 'run04 設定改用「不標停放自行車」資料（seed=2）', 0, False, 2),
+ ('run14', 'v3noparked_offlineflip', 'run09 設定改用「不標停放自行車」資料（seed=0）', 0, True, 0),
+ ('run14s1', 'v3noparked_offlineflip_seed1', 'run09 設定改用「不標停放自行車」資料（seed=1）', 0, True, 1),
+ ('run14s2', 'v3noparked_offlineflip_seed2', 'run09 設定改用「不標停放自行車」資料（seed=2）', 0, True, 2),
+]
+for rid, desc, title, deg, flip, sd in specs5:
+    run = f'{rid}_{desc}'
+    base = 'run09（離線只做左右翻轉）' if flip else 'run04（無擴增）'
+    chg = f'- 與 {base} 設定相同（seed={sd}），僅資料改為移除停放自行車標註的衍生版本（train 43／valid 7／test 22 個 bicycle 標註被移除，影像不變）。\n- 目的：依標註規則修訂（不標停放的自行車）重新評估；新舊 test 的指標不可直接比較。'
+    hdr = HDR_NP.format(rule=RULE_NEW, run=f'YOLOv8n_{rid}', desc=title, chg=chg).replace('僅 seed=0 一次，', f'本版 seed={sd}；與其他 seed 合併估計變異，')
+    build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, hdr, deg, offline_code([0], (0, 1), "# 離線擴增（只作用在 train）：只做左右翻轉，不旋轉（角度 {0}）× 左右翻轉 {否,是}\n# = 2 種組合（含原圖）→ 664 × 2 = 1,328 張。valid / test 不動。") if flip else False, '擴增已在上一步離線完成' if flip else '本版不做任何擴增', sd, 320, 'v3_noparked')
+print('done5')
+
+specs6 = [
+ ('run15', 'v3noparked_stride2', 2, 332, 0), ('run15s1', 'v3noparked_stride2_seed1', 2, 332, 1), ('run15s2', 'v3noparked_stride2_seed2', 2, 332, 2),
+ ('run16', 'v3noparked_stride4', 4, 166, 0), ('run16s1', 'v3noparked_stride4_seed1', 4, 166, 1), ('run16s2', 'v3noparked_stride4_seed2', 4, 166, 2),
+]
+for rid, desc, k, n, sd in specs6:
+    run = f'{rid}_{desc}'
+    title = f'run13 設定改為影格抽稀：train 每 {k} 張留 1 張（seed={sd}）'
+    chg = f'- 與 run13（無擴增）設定相同（seed={sd}），僅 train 依檔名排序後每 {k} 張只留 1 張（train {n} 張；valid／test 完全不動）。\n- 目的：檢驗影格密度是否為瓶頸；若只留 1／{k} 的影格指標不掉，代表現有影格冗餘高，提高抽幀取樣率預期收益有限。\n- 注意：train 變少時每個 epoch 的更新次數也變少（固定 epochs=100、patience=20），解讀時需一併參考 best epoch。'
+    hdr = HDR_NP.replace('影像仍為 Train 664／Valid 135／Test 142 張', f'本版另將 train 抽稀為 {n} 張；valid／test 仍為 135／142 張').format(rule=RULE_NEW, run=f'YOLOv8n_{rid}', desc=title, chg=chg).replace('僅 seed=0 一次，', f'本版 seed={sd}；與其他 seed 合併估計變異，')
+    build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, hdr, 0, False, '本版不做任何擴增（影格已抽稀）', sd, 320, f'v3_noparked_s{k}')
+print('done6')
+
+specs7 = [
+ ('run17', 'v3noparked_stride2_matched', 2, 332, 200, 40, 0), ('run17s1', 'v3noparked_stride2_matched_seed1', 2, 332, 200, 40, 1), ('run17s2', 'v3noparked_stride2_matched_seed2', 2, 332, 200, 40, 2),
+ ('run18', 'v3noparked_stride4_matched', 4, 166, 400, 80, 0), ('run18s1', 'v3noparked_stride4_matched_seed1', 4, 166, 400, 80, 1), ('run18s2', 'v3noparked_stride4_matched_seed2', 4, 166, 400, 80, 2),
+]
+for rid, desc, k, n, ep, pa, sd in specs7:
+    run = f'{rid}_{desc}'
+    title = f'run{15 if k == 2 else 16} 設定改為補齊訓練更新次數：epochs={ep}、patience={pa}（seed={sd}）'
+    chg = f'- 與 run{15 if k == 2 else 16}（train 每 {k} 張留 1 張，{n} 張）相同（seed={sd}），僅 epochs 由 100 改為 {ep}、patience 由 20 改為 {pa}，使總更新次數與 run13 大致相當。\n- 目的（控制實驗）：確認抽稀後的下降是來自資料量減少，還是來自訓練更新次數不足。'
+    hdr = HDR_NP.replace('影像仍為 Train 664／Valid 135／Test 142 張', f'本版另將 train 抽稀為 {n} 張；valid／test 仍為 135／142 張').format(rule=RULE_NEW, run=f'YOLOv8n_{rid}', desc=title, chg=chg).replace('僅 seed=0 一次，', f'本版 seed={sd}；與其他 seed 合併估計變異，').replace('epochs=100、patience=20', f'epochs={ep}、patience={pa}')
+    build(f'YOLOv8n_{rid}_{desc}_{DATE2}.ipynb', run, hdr, 0, False, '本版不做任何擴增（影格已抽稀）', sd, 320, f'v3_noparked_s{k}', ep, pa)
+print('done7')
 
 
 # ---- run19~run21（低成本組，2026-11-07）：以 run09（離線只翻轉、imgsz=320）為基準，一次只改一個因素，各 3 個 seed ----
@@ -268,7 +331,7 @@ print('test 在 conf*：P', round(float(np.asarray(m.box.p_curve).mean(0)[i]), 3
 
 HDR3 = '# {run}｜{desc}\n\n資料：Roboflow v3（941 張；Train 664／Valid 135／Test 142），合併為 person／dynamic_obstacle。\n\n**變更（相對 run09）**\n\n{chg}\n\n共同設定：YOLOv8n、imgsz=320、batch=32、weight_decay=0.0005、離線只做左右翻轉（train 1,328 張）。本版 seed={sd}；run09 三個 seed 的 test mAP50-95 為 0.378、0.383、0.384（平均 0.382），差距要超出 seed 變異才下結論。'
 
-specs5 = [
+specs8 = [
  ('run19', 'v3dynamic2class_flip_hsv', 'run09 加 HSV 光度擴增（建議 1.2）',
   '- 只多開 HSV 光度擴增：hsv_h=0.015、hsv_s=0.5、hsv_v=0.3（比 Ultralytics 預設 0.7 / 0.4 保守）。幾何擴增仍全關。\n- 高斯模糊：ultralytics==8.4.183 沒有 `augmentations` 參數，只剩內建 Albumentations 的 p=0.01 模糊，等於沒開，因此本版不含模糊。',
   dict(note='只開 HSV 光度擴增，幾何擴增全關', aug=AUG_OFF.replace('hsv_h=0, hsv_s=0, hsv_v=0', 'hsv_h=0.015, hsv_s=0.5, hsv_v=0.3'), extra=BASE_X)),
@@ -287,11 +350,14 @@ specs5 = [
  ('run24', 'v3dynamic2class_flip_mosaic_scale', 'run23 加 scale 與 translate 幾何擴增',
   '- 在 run23（mosaic=1.0、close_mosaic=0）之上再開 scale=0.5、translate=0.1（Ultralytics 預設值），其餘擴增仍全關。\n- 用途：mosaic 通常搭配 scale 才發揮完整效果，檢查是否還有加成；與 run23 的差異只有這兩項。',
   dict(note='mosaic=1.0、scale=0.5、translate=0.1、close_mosaic=0、epochs=100、patience=100', aug=AUG_OFF.replace('mosaic=0', 'mosaic=1.0').replace('translate=0, scale=0', 'translate=0.1, scale=0.5'), extra='epochs=100, patience=100, close_mosaic=0')),
+ ('run25', 'v3dynamic2class_flip_mosaic_scale09', 'run24 的 scale 由 0.5 提高到 0.9',
+  '- 在 run24（mosaic=1.0、translate=0.1、scale=0.5、close_mosaic=0）之上只把 scale 提高到 0.9，其餘不變。\n- 用途：確認 run24 的進步是否隨縮放強度繼續增加，或已經飽和。',
+  dict(note='mosaic=1.0、scale=0.9、translate=0.1、close_mosaic=0、epochs=100、patience=100', aug=AUG_OFF.replace('mosaic=0', 'mosaic=1.0').replace('translate=0, scale=0', 'translate=0.1, scale=0.9'), extra='epochs=100, patience=100, close_mosaic=0')),
 ]
-for rid, desc, title, chg, cfg in specs5:
+for rid, desc, title, chg, cfg in specs8:
     for suffix, sd in (('', 0), ('s1', 1), ('s2', 2)):
         run = f'{rid}{suffix}_{desc}' + (f'_seed{sd}' if sd else '')
         hdr = HDR3.format(run=f'YOLOv8n_{rid}{suffix}', desc=title, chg=chg, sd=sd)
         build(f'YOLOv8n_{rid}{suffix}_{desc}' + (f'_seed{sd}' if sd else '') + f'_{DATE3}.ipynb', run, hdr, 0, FLIP_ONLY, cfg['note'], sd, 320,
               train_code=TRAIN_X(sd, cfg['note'], cfg['aug'], cfg['extra']), extra_eval=CONF_PICK)
-print('done5')
+print('done8')
