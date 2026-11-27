@@ -10,8 +10,16 @@ colab_runs/local/work/
 *.pt
 *.cache
 data/task_A_alert_20261013/raw/
+# 新蒐集的影像含人臉與車牌，不入版控（2026/11/16）
+data/task_A_alert_20261029/
+data/task_A_alert_20261112/
 
 # 交接與教學文件（僅留本機）
 交接_*.md
 教學_*.md
 colab_runs/local/results/**/*.jpg
+
+# 訓練結果與權重（約 11GB，備份在 ~/yolo_backup_*），整個資料夾不入版控
+colab_runs/local/results/
+# Office 暫存鎖定檔
+~$*

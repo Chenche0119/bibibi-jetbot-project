@@ -1,0 +1,98 @@
+
+### dynamic_obstacle｜依原始類別（GT 數為 3 seed 累計）
+| 組別 | 分組 | GT 數(÷3) | 命中率 | 判成別類 | 框不準 | 完全漏掉 |
+|---|---|---|---|---|---|---|
+| run04 | car | 46 | 0.83 | 0.00 | 0.01 | 0.15 |
+| run04 | motorcycle | 9 | 0.22 | 0.00 | 0.00 | 0.78 |
+| run04 | bus | 6 | 0.22 | 0.00 | 0.06 | 0.72 |
+| run04 | bicycle | 30 | 0.20 | 0.06 | 0.29 | 0.46 |
+| run09 | car | 46 | 0.86 | 0.04 | 0.01 | 0.09 |
+| run09 | motorcycle | 9 | 0.33 | 0.00 | 0.00 | 0.67 |
+| run09 | bus | 6 | 0.33 | 0.00 | 0.06 | 0.61 |
+| run09 | bicycle | 30 | 0.37 | 0.02 | 0.12 | 0.49 |
+
+### dynamic_obstacle｜依目標大小（640 空間，sqrt(面積)）（GT 數為 3 seed 累計）
+| 組別 | 分組 | GT 數(÷3) | 命中率 | 判成別類 | 框不準 | 完全漏掉 |
+|---|---|---|---|---|---|---|
+| run04 | >=128px | 30 | 0.69 | 0.01 | 0.07 | 0.23 |
+| run04 | 64-128px | 42 | 0.48 | 0.01 | 0.17 | 0.34 |
+| run04 | 32-64px | 17 | 0.39 | 0.06 | 0.04 | 0.51 |
+| run04 | <32px | 2 | 0.00 | 0.00 | 0.00 | 1.00 |
+| run09 | >=128px | 30 | 0.71 | 0.06 | 0.04 | 0.19 |
+| run09 | 64-128px | 42 | 0.71 | 0.01 | 0.05 | 0.24 |
+| run09 | 32-64px | 17 | 0.27 | 0.02 | 0.06 | 0.65 |
+| run09 | <32px | 2 | 0.00 | 0.00 | 0.00 | 1.00 |
+
+### dynamic_obstacle｜依垂直位置（GT 數為 3 seed 累計）
+| 組別 | 分組 | GT 數(÷3) | 命中率 | 判成別類 | 框不準 | 完全漏掉 |
+|---|---|---|---|---|---|---|
+| run04 | top | 8 | 0.75 | 0.00 | 0.00 | 0.25 |
+| run04 | mid | 80 | 0.50 | 0.02 | 0.12 | 0.35 |
+| run04 | bottom | 3 | 0.44 | 0.00 | 0.00 | 0.56 |
+| run09 | top | 8 | 0.67 | 0.21 | 0.00 | 0.12 |
+| run09 | mid | 80 | 0.60 | 0.01 | 0.05 | 0.33 |
+| run09 | bottom | 3 | 0.67 | 0.00 | 0.00 | 0.33 |
+
+### dynamic_obstacle｜依是否貼邊（GT 數為 3 seed 累計）
+| 組別 | 分組 | GT 數(÷3) | 命中率 | 判成別類 | 框不準 | 完全漏掉 |
+|---|---|---|---|---|---|---|
+| run04 | touch_edge | 29 | 0.62 | 0.01 | 0.02 | 0.34 |
+| run04 | inside | 62 | 0.48 | 0.02 | 0.15 | 0.35 |
+| run09 | touch_edge | 29 | 0.68 | 0.07 | 0.01 | 0.24 |
+| run09 | inside | 62 | 0.58 | 0.01 | 0.06 | 0.35 |
+
+### person｜依目標大小（640 空間，sqrt(面積)）（GT 數為 3 seed 累計）
+| 組別 | 分組 | GT 數(÷3) | 命中率 | 判成別類 | 框不準 | 完全漏掉 |
+|---|---|---|---|---|---|---|
+| run04 | <32px | 2 | 0.00 | 0.00 | 0.00 | 1.00 |
+| run04 | >=128px | 62 | 0.91 | 0.00 | 0.03 | 0.05 |
+| run04 | 64-128px | 49 | 0.78 | 0.00 | 0.04 | 0.18 |
+| run04 | 32-64px | 24 | 0.38 | 0.00 | 0.04 | 0.58 |
+| run09 | <32px | 2 | 0.00 | 0.00 | 0.00 | 1.00 |
+| run09 | >=128px | 62 | 0.91 | 0.00 | 0.02 | 0.07 |
+| run09 | 64-128px | 49 | 0.84 | 0.00 | 0.03 | 0.13 |
+| run09 | 32-64px | 24 | 0.40 | 0.03 | 0.08 | 0.49 |
+
+### person｜依垂直位置（GT 數為 3 seed 累計）
+| 組別 | 分組 | GT 數(÷3) | 命中率 | 判成別類 | 框不準 | 完全漏掉 |
+|---|---|---|---|---|---|---|
+| run04 | mid | 133 | 0.76 | 0.00 | 0.04 | 0.21 |
+| run04 | top | 4 | 0.83 | 0.00 | 0.00 | 0.17 |
+| run09 | mid | 133 | 0.78 | 0.01 | 0.04 | 0.18 |
+| run09 | top | 4 | 0.75 | 0.00 | 0.00 | 0.25 |
+
+### person｜依是否貼邊（GT 數為 3 seed 累計）
+| 組別 | 分組 | GT 數(÷3) | 命中率 | 判成別類 | 框不準 | 完全漏掉 |
+|---|---|---|---|---|---|---|
+| run04 | inside | 124 | 0.76 | 0.00 | 0.03 | 0.21 |
+| run04 | touch_edge | 13 | 0.74 | 0.00 | 0.08 | 0.18 |
+| run09 | inside | 124 | 0.79 | 0.01 | 0.04 | 0.17 |
+| run09 | touch_edge | 13 | 0.74 | 0.00 | 0.00 | 0.26 |
+
+### 各組總體（3 seed 平均）
+- run04 dynamic_obstacle: 命中 0.524，判成別類 0.018，框不準 0.106，完全漏掉 0.352；平均誤報 20.0 個
+- run04 person: 命中 0.759，判成別類 0.000，框不準 0.036，完全漏掉 0.204；平均誤報 24.0 個
+- run09 dynamic_obstacle: 命中 0.612，判成別類 0.026，框不準 0.048，完全漏掉 0.315；平均誤報 17.0 個
+- run09 person: 命中 0.783，判成別類 0.005，框不準 0.034，完全漏掉 0.178；平均誤報 15.0 個
+
+### 6 個模型全部沒命中的 dynamic_obstacle（GT）
+共 19 / 91 個
+- alert_bg_am_0624_jpg.rf.0389c6054477870d | motorcycle | 32-64px | mid | inside | w×h=54×54 | {'miss': 6}
+- alert_bg_am_0630_jpg.rf.1f69be2c14977cec | bus | 64-128px | mid | inside | w×h=78×74 | {'miss': 6}
+- alert_bg_am_0631_jpg.rf.2b9c720ec062aa77 | bus | >=128px | mid | inside | w×h=120×178 | {'miss': 4, 'loc': 2}
+- alert_road_am_0229_jpg.rf.e3d150aa9ce6a0 | bus | 64-128px | mid | inside | w×h=62×178 | {'miss': 6}
+- alert_road_am_0232_jpg.rf.06c0ea52f3de7c | bus | >=128px | mid | inside | w×h=140×153 | {'miss': 6}
+- alert_road_am_0492_jpg.rf.b1c66ac6d52899 | motorcycle | 32-64px | mid | inside | w×h=41×40 | {'miss': 6}
+- alert_road_am_0493_jpg.rf.57e45ccd460b42 | motorcycle | 32-64px | mid | inside | w×h=28×41 | {'miss': 6}
+- alert_road_am_0493_jpg.rf.57e45ccd460b42 | motorcycle | <32px | mid | inside | w×h=20×22 | {'miss': 6}
+- alert_road_am_0778_jpg.rf.93be44f7936f08 | bicycle | 32-64px | mid | inside | w×h=64×46 | {'miss': 6}
+- alert_road_am_0778_jpg.rf.93be44f7936f08 | bicycle | 64-128px | mid | inside | w×h=127×32 | {'loc': 1, 'miss': 5}
+- alert_road_am_0779_jpg.rf.90224e0095677f | bicycle | 32-64px | mid | inside | w×h=62×62 | {'miss': 6}
+- alert_road_am_0799_jpg.rf.9ca6643d2b2021 | bicycle | 64-128px | mid | touch_edge | w×h=104×53 | {'miss': 6}
+- alert_road_am_0801_jpg.rf.35f912fef586d7 | bicycle | 64-128px | mid | touch_edge | w×h=129×56 | {'miss': 6}
+- alert_road_am_0802_jpg.rf.42968dbb27f185 | bicycle | 64-128px | mid | inside | w×h=115×121 | {'loc': 5, 'miss': 1}
+- alert_road_am_0802_jpg.rf.42968dbb27f185 | bicycle | 64-128px | mid | touch_edge | w×h=193×60 | {'miss': 6}
+- alert_road_am_0804_jpg.rf.47dbea933b44f3 | bicycle | 64-128px | mid | touch_edge | w×h=264×55 | {'miss': 6}
+- alert_road_am_0804_jpg.rf.47dbea933b44f3 | car | <32px | mid | inside | w×h=26×24 | {'miss': 6}
+- alert_road_am_1066_jpg.rf.3802907ef51a15 | bicycle | 32-64px | mid | inside | w×h=30×66 | {'wrongcls': 3, 'miss': 3}
+- alert_road_am_1067_jpg.rf.8921d17a39d33e | bicycle | >=128px | mid | inside | w×h=109×168 | {'miss': 5, 'wrongcls': 1}
