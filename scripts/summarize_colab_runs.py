@@ -6,6 +6,11 @@ Each run dir holds runs/<run_id>/results.csv (Ultralytics). Takes the best epoch
 per run, groups runs by name with the seed suffix (sN) removed, and prints mean/std of mAP50
 across seeds plus the delta against the baseline group (flagged 'above noise' only when
 |delta| > 2 x baseline std). Writes per-run rows to out.csv (default colab_runs_summary.csv).
+
+Overfitting indicators (P6) per run, from the same results.csv:
+  loss_gap     val total loss - train total loss (box+cls+dfl) at the best epoch
+  val_rise     final val total loss - its minimum (> 0 means val loss went back up)
+  mAP50_drop   best mAP50 - final-epoch mAP50
 """
 import csv, glob, os, re, statistics as st, sys
 from collections import defaultdict
@@ -31,6 +36,36 @@ def delta_vs_baseline(groups, baseline_key="baseline"):
     return out
 
 
+LOSSES = ("box_loss", "cls_loss", "dfl_loss")
+
+
+def total_loss(row, split):
+    return sum(float(row[f"{split}/{k}"]) for k in LOSSES)
+
+
+def overfit_metrics(res):
+    """res: list of results.csv rows (dicts). Returns (best_row, loss_gap, val_rise, mAP50_drop)."""
+    best = max(res, key=lambda x: float(x["metrics/mAP50(B)"]))
+    val = [total_loss(r, "val") for r in res]
+    loss_gap = total_loss(best, "val") - total_loss(best, "train")
+    val_rise = val[-1] - min(val)
+    mAP50_drop = float(best["metrics/mAP50(B)"]) - float(res[-1]["metrics/mAP50(B)"])
+    return best, loss_gap, val_rise, mAP50_drop
+
+
+def overfit_markdown(rows):
+    """Group-level mean of the overfitting indicators, as a Markdown table."""
+    g = defaultdict(list)
+    for r in rows:
+        g[r["group"]].append(r)
+    lines = ["| group | n | loss_gap | val_rise | mAP50_drop |", "|---|---|---|---|---|"]
+    for name, rs in g.items():
+        m = {k: st.mean(float(r[k]) for r in rs) for k in ("loss_gap", "val_rise", "mAP50_drop")}
+        lines.append(f"| {name} | {len(rs)} | {m['loss_gap']:+.3f} | {m['val_rise']:+.3f} | "
+                     f"{m['mAP50_drop']:+.4f} |")
+    return "\n".join(lines)
+
+
 def to_markdown(groups, deltas):
     """Render the group table as Markdown for pasting into the discussion log."""
     lines = ["| group | n | mAP50 mean | std | delta | verdict |", "|---|---|---|---|---|---|"]
@@ -54,7 +89,7 @@ def main():
             res = [{k.strip(): v.strip() for k, v in x.items()} for x in csv.DictReader(fh)]
         if not res:
             continue
-        best = max(res, key=lambda x: float(x["metrics/mAP50(B)"]))
+        best, loss_gap, val_rise, mAP50_drop = overfit_metrics(res)
         m = re.match(r"run(\d+)(?:s(\d+))?_(.+?)(?:_seed\d+)?$", run_id)
         rows.append({
             "run_id": run_id,
@@ -63,6 +98,8 @@ def main():
             "epochs_run": len(res), "best_epoch": best["epoch"],
             "precision": best["metrics/precision(B)"], "recall": best["metrics/recall(B)"],
             "mAP50": best["metrics/mAP50(B)"], "mAP50-95": best["metrics/mAP50-95(B)"],
+            "loss_gap": f"{loss_gap:.4f}", "val_rise": f"{val_rise:.4f}",
+            "mAP50_drop": f"{mAP50_drop:.4f}",
         })
 
     if rows:
@@ -81,6 +118,8 @@ def main():
               f"{d:+.4f}" if d is not None else "-", verdict, sep="\t")
     if "--md" in sys.argv:
         print(to_markdown(groups, deltas))
+        print()
+        print(overfit_markdown(rows))
     print(f"{len(rows)} runs summarized -> {out}")
 
 

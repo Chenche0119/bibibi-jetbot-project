@@ -4,7 +4,7 @@
 """
 import unittest
 
-from summarize_colab_runs import delta_vs_baseline, to_markdown
+from summarize_colab_runs import delta_vs_baseline, overfit_markdown, overfit_metrics, to_markdown
 
 
 class DeltaTest(unittest.TestCase):
@@ -27,6 +27,31 @@ class DeltaTest(unittest.TestCase):
         md = to_markdown(g, delta_vs_baseline(g))
         self.assertEqual(len(md.splitlines()), 4)
         self.assertIn("| x | 1 | 0.8000 | - |", md)
+
+
+
+def _row(epoch, m50, train, val):
+    r = {"epoch": str(epoch), "metrics/mAP50(B)": str(m50)}
+    for k in ("box_loss", "cls_loss", "dfl_loss"):
+        r[f"train/{k}"] = str(train / 3)
+        r[f"val/{k}"] = str(val / 3)
+    return r
+
+
+class OverfitTest(unittest.TestCase):
+    def test_indicators(self):
+        res = [_row(1, 0.5, 6.0, 4.5), _row(2, 0.8, 4.5, 3.0), _row(3, 0.7, 3.0, 3.6)]
+        best, gap, rise, drop = overfit_metrics(res)
+        self.assertEqual(best["epoch"], "2")
+        self.assertAlmostEqual(gap, -1.5)
+        self.assertAlmostEqual(rise, 0.6)
+        self.assertAlmostEqual(drop, 0.1)
+
+    def test_overfit_markdown(self):
+        rows = [{"group": "g", "loss_gap": "0.2", "val_rise": "0.0", "mAP50_drop": "0.01"},
+                {"group": "g", "loss_gap": "0.4", "val_rise": "0.2", "mAP50_drop": "0.03"}]
+        md = overfit_markdown(rows)
+        self.assertIn("| g | 2 | +0.300 | +0.100 | +0.0200 |", md)
 
 
 if __name__ == "__main__":

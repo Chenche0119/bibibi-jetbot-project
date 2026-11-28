@@ -169,3 +169,28 @@
 | run27 | -0.001 (within noise) | +0.303 (above noise) | +0.401 (above noise) | +0.300 (above noise) | +0.311 (above noise) |
 
 與上方結論一致：gate 資料帶來的提升在 gate_test 各指標都超出雜訊，原 test 則維持不變。之後新增 gate 相關組別（run28 以後）可直接用同一指令與 run26 比較。
+
+補充（2026-11-28 例行整理）：過去 24 小時遠端只有 `yolo-model-design` 的 a9e4011（gate_test 加 `--baseline`），其他分支無新提交。本輪補上 P6「overfitting 判讀」的工具：`scripts/summarize_colab_runs.py` 對每個 run 從 `results.csv` 多算三個指標，寫入 CSV，`--md` 時另輸出一張組別平均表：
+
+- `loss_gap`：最佳 epoch 的 val 總 loss − train 總 loss（box＋cls＋dfl）。
+- `val_rise`：最後一個 epoch 的 val 總 loss − 整段訓練的最小值（> 0 代表 val loss 回升）。
+- `mAP50_drop`：最佳 mAP50 − 最後一個 epoch 的 mAP50。
+
+以本機 65 個 run 實跑（節錄）：
+
+| group | n | loss_gap | val_rise | mAP50_drop |
+|---|---|---|---|---|
+| run04 baseline | 3 | +2.672 | +0.239 | +0.0598 |
+| run09 offlineflip | 3 | +2.319 | +0.350 | +0.0450 |
+| run14 noparked offlineflip | 5 | +2.745 | +0.248 | +0.0458 |
+| run23 flip mosaic noclose | 5 | +1.519 | +0.469 | +0.0390 |
+| run24 flip mosaic scale | 5 | +1.223 | +0.350 | +0.0245 |
+| run25 flip mosaic scale09 | 3 | +0.600 | +0.214 | +0.0245 |
+
+判讀注意：
+- 所有組別 `val_rise` 都 > 0，最後 epoch 的 mAP50 都比最佳低 0.02–0.07，表示訓練後段普遍出現 overfitting，以最佳 epoch（best.pt）評估是必要的。
+- `loss_gap` 會受訓練時增強強度影響：mosaic／scale 讓 train loss 變高，gap 自然縮小（run23–25 明顯較小），不能直接解讀為「比較不 overfit」；比較時應限於增強設定相同的組別（例如 run13–18 的資料量實驗）。
+- run20 改了 box／dfl loss 權重，loss 數值尺度不同，`loss_gap` 不可與其他組比較。
+- 在資料量實驗中，stride4（run16、run18）的 `loss_gap` 最大（3.13、3.36），符合資料越少越容易 overfit 的預期。
+
+另：本機 results 目錄中第一個名稱含 baseline 的組別是 run01（單 seed），所以 delta 欄位顯示 "no baseline std"；要與 run04 比較時，需只放 v3 的結果或改用 run04 作基準（可沿用 gate_test 的 `--baseline` 做法，留待下次）。
